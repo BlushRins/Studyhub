@@ -1,67 +1,109 @@
 ---
 type: project
-tags: [project, nextjs, typescript, react, tailwind, obsidian]
+tags: [project, nextjs, typescript, react, tailwind, obsidian, cis-2101]
 created: 2026-09-23
 status: active
-updated: 2026-09-24
+updated: 2026-09-28
 ---
 
 # Study Hub
 
-Code-first web reader for technical notes. The frontend foundation for
-eventually rendering this vault. Next.js 16 (App Router), TypeScript, Tailwind v4.
+Web reader for step-by-step study guides. It currently holds the
+[[CIS-2101 Data Structures]] weeks 7–12 path: ADT Set, ADT Dictionary and
+ADT Priority Queue, from fundamentals to advanced. Next.js 16 (App Router),
+TypeScript, Tailwind v4.
 
 **Outcome:** a dark, reading-optimised app that renders Obsidian-flavoured
-markdown: highlighted code, Mermaid diagrams, zoomable images, and wikilinks
-with hover previews.
-**Next action:** replace the demo data behind `lib/notes.ts` with a loader that
-reads this vault from disk.
-**Definition of done (v1):** real vault notes render with every feature the demo has.
+Markdown: highlighted code, Mermaid diagrams, callouts, zoomable images, and
+wikilinks with hover previews.
+**Next action:** work through the learning path, starting at [[What Is an ADT]].
+**Definition of done (v1):** notes live as Markdown in `content/` and render
+identically in Obsidian and the app.
 
 Build journal: [[Study Hub Build Log]]
-Related: [[CIS-2101 Data Structures]] (the BST and hash map demo notes)
 
 ## Run it
 
 ```bash
 cd "Projects/Study Hub"
 npm install   # first time only
-npm run dev   # http://localhost:3000
+npm run dev   # http://localhost:3000 — edits to content/*.md show on refresh
 ```
+
+`npm start` serves the last `npm run build`. Rebuild after changing notes.
+
+## Learning path (content/)
+
+| Step | Note | Level |
+|---|---|---|
+| 1 | [[What Is an ADT]] | Fundamentals |
+| 2 | [[Big-O and Complexity]] | Fundamentals |
+| 3 | [[Bitwise Operations in C]] | Basic |
+| 4 | [[ADT Set]] | Fundamentals |
+| 5 | [[List-Based Sets]] | Basic |
+| 6 | [[Bit-Vector Sets]] | Intermediate |
+| 7 | [[Bit-Vector Union (Lecture)]] | Basic, class whiteboard 2026-09-28 |
+| 8 | [[Bit Vectors in the Real World]] | Advanced |
+| 9 | [[ADT Dictionary]] | Fundamentals |
+| 10 | [[Hash Functions]] | Basic |
+| 11 | [[Open Hashing]] | Intermediate |
+| 12 | [[Closed Hashing]] | Intermediate |
+| 13 | [[Hash Table Performance]] | Advanced |
+| 14 | [[ADT Priority Queue]] | Fundamentals |
+| 15 | [[Partially Ordered Trees]] | Basic |
+| 16 | [[Heaps in Arrays]] | Intermediate |
+| 17 | [[Heapify and Heap Sort]] | Advanced |
+
+Each note has goals, theory, worked traces, C code, practice problems graded
+basic → advanced with foldable answers, and references. Graded course
+exercises (ADT Guide bit-vector functions, hashing practice exercises, heap
+insert/deletemin, heap sort) are taught with hints and self-check tests, not
+solved.
+
+Lecture notes from class photos go in the same path: the photo lives in
+`content/assets/` (cropped, resized, EXIF stripped) and the note transcribes it.
+
+## Writing a note
+
+A Markdown file in `content/`. The filename is the title. Frontmatter:
+
+```yaml
+category: adt-set          # foundations | adt-set | adt-dictionary | adt-priority-queue
+level: basic               # fundamentals | basic | intermediate | advanced
+step: 5                    # position in the path, unique
+summary: "One or two sentences for the header and hover cards."
+tags: [cis-2101, ...]
+updated: 2026-09-28
+```
+
+Supports GFM tables and task lists, ```` ```c title="x.c" {3-5} ```` code
+blocks, ```` ```mermaid ```` diagrams, `> [!tip]` callouts (`> [!hint]-`
+folds), `[[wikilinks]]`, and images from `content/assets/`.
 
 ## Layout
 
 | Path | Role |
 |---|---|
-| `app/layout.tsx` | fonts, dark theme, `AppShell` |
-| `app/notes/[slug]/page.tsx` | note page: header, viewer, linked mentions, ToC |
-| `components/layout/AppShell.tsx` | top bar, collapsible sidebar, mobile drawer |
-| `components/layout/Sidebar.tsx` | category tree, icon rail when collapsed |
-| `components/layout/TableOfContents.tsx` | scroll-spy "On this page" |
-| `components/note/NoteViewer.tsx` | markdown pipeline (server component) |
-| `components/note/CodeBlock.tsx` | language badge, line numbers, copy button |
-| `components/note/DiagramViewer.tsx` | Mermaid → SVG, source toggle, expand |
-| `components/note/ImageLightbox.tsx` | inline figure + zoom dialog |
-| `components/note/ZoomDialog.tsx` | shared zoom/pan viewer (images + diagrams) |
-| `components/note/WikiLink.tsx` | wikilink with hover preview card |
-| `lib/markdown/` | remark/rehype plugins: wikilinks, mermaid, code titles |
-| `lib/notes.ts` | data-access layer, **the one file to swap for a vault loader** |
-| `data/notes.ts` | demo content: 8 notes, RAG Architecture is the flagship |
+| `content/*.md` | the notes; `content/assets/` for their images |
+| `lib/notes.ts` | loads and validates `content/`, wikilink resolution, backlinks, path order |
+| `lib/categories.ts` | categories (sidebar order) and levels |
+| `lib/markdown/` | remark/rehype plugins: callouts, wikilinks, mermaid, code titles |
+| `app/notes/[slug]/page.tsx` | note page: level, step, viewer, prev/next, linked mentions, ToC |
+| `app/content/[...path]/route.ts` | serves `content/assets/*` (static at build) |
+| `components/note/` | NoteViewer, Callout, CodeBlock, DiagramViewer, ImageLightbox, ZoomDialog, WikiLink, LevelBadge |
+| `components/layout/` | AppShell, Sidebar (step numbers), TableOfContents |
 
 ## Notes
 
-- **Obsidian + `node_modules/`:** the installed packages include thousands of
-  `.md` files. Add `node_modules/` under Settings → Files & links → Excluded
-  files so they stay out of search and the graph.
-- Git: no nested repo. The vault repo tracks this folder, and the project's own
-  `.gitignore` covers `node_modules/`, `.next/`, and `next-env.d.ts`.
-- Demo markdown lives in TypeScript template literals, so fences there use
-  `~~~` instead of backticks.
+- **Obsidian + `node_modules/`:** add `node_modules/` under Settings → Files &
+  links → Excluded files so package READMEs stay out of search and the graph.
+- Git: no nested repo. The project's `.gitignore` covers `node_modules/`,
+  `.next/`, `next-env.d.ts`.
 
 ## Next
 
-- [ ] Vault loader: read `.md` + frontmatter from this vault, map folders → categories
-- [ ] Obsidian callouts (`> [!note]`) and `![[image.png]]` embeds from `Resources/Attachments/`
+- [ ] Callouts and wikilinks render in Obsidian too: open a note there and compare
+- [ ] Extend the path: Trees and Graphs (weeks 13+)
 - [ ] Search across notes
 - [ ] Light theme (colours are already CSS variables)
 - [ ] "On this page" dropdown for small screens

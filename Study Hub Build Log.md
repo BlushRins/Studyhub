@@ -8,7 +8,7 @@ tags:
   - build-log
 ---
 
-# Study Hub Build Log — 2026-09-23 → 09-24
+# Study Hub Build Log — 2026-09-23 → 09-28
 
 How [[Study Hub]] went from an empty folder to a working note viewer: what was
 built, what broke, and why each fix is the way it is.
@@ -109,3 +109,80 @@ npm install -D @tailwindcss/typography @types/mdast @types/hast
 - **Commit or checkpoint:** nothing committed. The folder shows as untracked in the vault repo.
 - **Next action:** in Obsidian, add `node_modules/` to Settings → Files & links → Excluded files. Then start the vault loader in `lib/notes.ts` (see [[Study Hub]] → Next).
 - Dev-server launch config for Claude's browser pane: `~/Documents/.claude/launch.json` (outside the vault).
+
+---
+
+## Session 2 — 2026-09-28: CIS-2101 course notes
+
+**Target:** delete the demo notes and replace them with a step-by-step
+weeks 7–12 path (ADT Set, Dictionary, Priority Queue). Each topic runs
+fundamentals → advanced, with theory and practice and C examples. The
+sources were the syllabus screenshots, the ADT Guide (*Bit Vector Set*), the
+course handouts and web research.
+
+### Scope decisions
+
+- Weeks 7–12 only (asked; "whole course" was the other option), plus a short
+  foundations track: ADTs, Big-O, bitwise ops.
+- **Coursework rule applied.** The ADT Guide functions, the handouts' practice
+  exercises (bit-pattern printer, `setUnion` V1/V2, the open- and
+  closed-hashing programs, the search-length challenge) and heap
+  insert/deletemin/heap sort get traces, pseudocode, hints and **self-check
+  test files**, never the finished function. Full C code is only for
+  *different* problems: permission flags, `isSubset`, binary search on
+  strings, string hashes, a word-frequency counter, a triage queue,
+  multi-word bitsets, a prime sieve.
+- The notes match the handouts' vocabulary (AHU): ADT UID, internal/external
+  hashing, synonyms and displacement, packing density 80%, POT, the 0-based
+  `elem[]`/`lastNdx` heap, min-heap sorts descending.
+
+### Architecture changes
+
+- Notes moved from `data/notes.ts` (TS strings) to **`content/*.md`**. The
+  filename is the title, so wikilinks resolve in Obsidian too. `lib/notes.ts`
+  now reads and validates the frontmatter (category, level, step, summary) and
+  fails the build with the file name on mistakes. In dev it re-reads on every
+  request, so edits show on refresh.
+- **Callouts** (`> [!type] Title`, foldable `-`/`+`) come from a remark plugin
+  and a server `<Callout>` that uses native `<details>`, so no client JS.
+- **Level badge, "Step N of 16", prev/next navigation, step numbers in the sidebar.**
+- **Relative images** (`assets/x.svg`) are served by a static route handler
+  `app/content/[...path]`, restricted to `content/assets` and image types.
+- Demo data and the RAG sketch deleted. The header pill now reads "CIS-2101 · 16 notes".
+
+### Correctness work
+
+| What | How it was checked |
+|---|---|
+| Every trace (bit ops, hash buckets, probing, heaps) | computed by a script first, then written in |
+| 18 titled C blocks | extracted from the Markdown and compiled with `-Wall -Wextra -Werror -fsanitize=address,undefined`; programs run and outputs pasted in |
+| Test harnesses | run against private reference implementations kept in the scratchpad, never published |
+| Handout facts | verified on gcc 16: bit-field struct is 4 bytes, `bool[8]` is 8, 300 → 44 truncation, `enum {TRUE, FALSE}` makes TRUE = 0 |
+| Wikilinks | script: 39 links, 0 unresolved; steps 1–16 unique |
+
+Bugs caught this way: `bitset.h` missing `<stddef.h>`; three highlight line
+ranges off by one or two; the table printer labelled synonym collisions as
+"displaced" (the handout reserves that word for non-synonyms); one probe
+estimate rounded wrong.
+
+### Verification
+
+- `tsc` exit 0, `eslint` exit 0, `next build`: 22 static pages (16 notes + 2 assets).
+- Browser sweep over all 16 notes: every diagram rendered, 0 render errors, 0
+  raw `[!callout]` text, folds open and close, asset route 200 (and 404 for
+  `../package.json`), no console errors except the two deliberate 404 probes.
+- 375 px: zero horizontal overflow on the three heaviest notes.
+
+### Handoff
+
+- Nothing committed.
+- Next: open a few notes in Obsidian to confirm callouts, Mermaid and
+  `assets/` images render there too.
+
+### Addendum — whiteboard lecture note
+
+Added step 7, [[Bit-Vector Union (Lecture)]], from a class photo, and shifted
+the later notes to steps 8–17. The photo was cropped to the board, resized to
+1800 px (5 MB → 104 KB) and stripped of EXIF. The board code was run through gcc
+to quote the real errors (`#DEFINE`, `union` as a name, returning an array);
+the fixes were compiled and run under ASan. The board's `main()` exercise got hints only.
