@@ -7,3 +7,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Writing and updating study notes
+
+Before adding a topic, turning an idea or source into a note, or revising an
+existing note in `content/`, read and follow [NOTE_AUTHORING_GUIDE.md](NOTE_AUTHORING_GUIDE.md).
+It defines the required learning progression, examples, practice, visuals,
+source checks, and review steps. Keep this instruction outside the generated
+Next.js block above.
