@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="330" viewBox="0 0 820 330" font-family="ui-sans-serif, system-ui, sans-serif">
+<rect width="820" height="330" rx="14" fill="#10131a"/>
+<text x="40" y="52" font-size="20" font-weight="600" fill="#e6e8ee">Computer word: <tspan font-family="ui-monospace, monospace" fill="#8b9cff">unsigned char A = 37;</tspan></text>
+<text x="40" y="80" font-size="14" fill="#a0a8b8">Element x lives in the bit whose place value is 2^x. Bit = 1 means x is in the set.</text>
+<text x="152" y="106" font-size="12" fill="#6b7385" text-anchor="end">element / bit</text>
+<text x="152" y="157.0" font-size="12" fill="#6b7385" text-anchor="end">bit value</text>
+<text x="152" y="210" font-size="12" fill="#6b7385" text-anchor="end">place value</text>
+<text x="207.0" y="106" font-size="15" text-anchor="middle" fill="#6b7385" font-weight="400">7</text>
+<rect x="173" y="120" width="68" height="64" rx="8" fill="#161a23" fill-opacity="1" stroke="#323a50" stroke-width="1.5"/>
+<text x="207.0" y="161.0" font-size="26" text-anchor="middle" font-family="ui-monospace, monospace" fill="#6b7385" font-weight="400">0</text>
+<text x="207.0" y="210" font-size="14" text-anchor="middle" font-family="ui-monospace, monospace" fill="#4b5263">128</text>
+<text x="281.0" y="106" font-size="15" text-anchor="middle" fill="#6b7385" font-weight="400">6</text>
+<rect x="247" y="120" width="68" height="64" rx="8" fill="#161a23" fill-opacity="1" stroke="#323a50" stroke-width="1.5"/>
+<text x="281.0" y="161.0" font-size="26" text-anchor="middle" font-family="ui-monospace, monospace" fill="#6b7385" font-weight="400">0</text>
+<text x="281.0" y="210" font-size="14" text-anchor="middle" font-family="ui-monospace, monospace" fill="#4b5263">64</text>
+<text x="355.0" y="106" font-size="15" text-anchor="middle" fill="#8b9cff" font-weight="600">5</text>
+<rect x="321" y="120" width="68" height="64" rx="8" fill="#8b9cff" fill-opacity="0.18" stroke="#8b9cff" stroke-width="2"/>
+<text x="355.0" y="161.0" font-size="26" text-anchor="middle" font-family="ui-monospace, monospace" fill="#e6e8ee" font-weight="700">1</text>
+<text x="355.0" y="210" font-size="14" text-anchor="middle" font-family="ui-monospace, monospace" fill="#a0a8b8">32</text>
+<text x="429.0" y="106" font-size="15" text-anchor="middle" fill="#6b7385" font-weight="400">4</text>
+<rect x="395" y="120" width="68" height="64" rx="8" fill="#161a23" fill-opacity="1" stroke="#323a50" stroke-width="1.5"/>
+<text x="429.0" y="161.0" font-size="26" text-anchor="middle" font-family="ui-monospace, monospace" fill="#6b7385" font-weight="400">0</text>
+<text x="429.0" y="210" font-size="14" text-anchor="middle" font-family="ui-monospace, monospace" fill="#4b5263">16</text>
+<text x="503.0" y="106" font-size="15" text-anchor="middle" fill="#6b7385" font-weight="400">3</text>
+<rect x="469" y="120" width="68" height="64" rx="8" fill="#161a23" fill-opacity="1" stroke="#323a50" stroke-width="1.5"/>
+<text x="503.0" y="161.0" font-size="26" text-anchor="middle" font-family="ui-monospace, monospace" fill="#6b7385" font-weight="400">0</text>
+<text x="503.0" y="210" font-size="14" text-anchor="middle" font-family="ui-monospace, monospace" fill="#4b5263">8</text>
+<text x="577.0" y="106" font-size="15" text-anchor="middle" fill="#8b9cff" font-weight="600">2</text>
+<rect x="543" y="120" width="68" height="64" rx="8" fill="#8b9cff" fill-opacity="0.18" stroke="#8b9cff" stroke-width="2"/>
+<text x="577.0" y="161.0" font-size="26" text-anchor="middle" font-family="ui-monospace, monospace" fill="#e6e8ee" font-weight="700">1</text>
+<text x="577.0" y="210" font-size="14" text-anchor="middle" font-family="ui-monospace, monospace" fill="#a0a8b8">4</text>
+<text x="651.0" y="106" font-size="15" text-anchor="middle" fill="#6b7385" font-weight="400">1</text>
+<rect x="617" y="120" width="68" height="64" rx="8" fill="#161a23" fill-opacity="1" stroke="#323a50" stroke-width="1.5"/>
+<text x="651.0" y="161.0" font-size="26" text-anchor="middle" font-family="ui-monospace, monospace" fill="#6b7385" font-weight="400">0</text>
+<text x="651.0" y="210" font-size="14" text-anchor="middle" font-family="ui-monospace, monospace" fill="#4b5263">2</text>
+<text x="725.0" y="106" font-size="15" text-anchor="middle" fill="#8b9cff" font-weight="600">0</text>
+<rect x="691" y="120" width="68" height="64" rx="8" fill="#8b9cff" fill-opacity="0.18" stroke="#8b9cff" stroke-width="2"/>
+<text x="725.0" y="161.0" font-size="26" text-anchor="middle" font-family="ui-monospace, monospace" fill="#e6e8ee" font-weight="700">1</text>
+<text x="725.0" y="210" font-size="14" text-anchor="middle" font-family="ui-monospace, monospace" fill="#a0a8b8">1</text>
+<text x="460.0" y="248" font-size="14" fill="#6b7385" text-anchor="middle">most significant bit ← → least significant bit (bit 0)</text>
+<text x="40" y="296" font-size="17" fill="#e6e8ee">A = <tspan fill="#5eead4" font-weight="600">{0, 2, 5}</tspan>  →  2⁰ + 2² + 2⁵ = 1 + 4 + 32 = <tspan fill="#8b9cff" font-weight="600">37</tspan>  =  <tspan font-family="ui-monospace, monospace">0b00100101</tspan>  =  <tspan font-family="ui-monospace, monospace">0x25</tspan></text>
+</svg>
