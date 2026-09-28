@@ -2,176 +2,173 @@
 category: foundations
 level: fundamentals
 step: 1
-summary: "An abstract data type is a set of values plus the operations allowed on them, defined by what the operations do, not how they're coded. Every topic in this course is one ADT with several implementations."
-tags: [cis-2101, adt, c, foundations]
+summary: "Start with a problem, define the values and operations, then choose a representation. Learn the ADT boundary with a runnable C module."
+tags: [cis-2101, adt, abstraction, c, foundations]
 course: CIS-2101 Data Structures
 updated: 2026-09-28
 ---
 
-> [!goal] By the end of this note you can
-> - Explain the difference between an ADT, a data structure, and an implementation.
-> - Read an ADT specification the way your handouts write it: `insert(x, A)`, `member(x, A)`, …
-> - Split an ADT into a C interface (prototypes) and an implementation (function bodies).
+> [!goal] After this lesson
+> You can distinguish a model, ADT, data structure, and implementation; write an operation contract; and explain why hiding a representation matters in C.
 
-## The idea in one sentence
+## 1. Start with a problem, not a struct
 
-An **abstract data type (ADT)** is a mathematical model (a set of values) together with the **operations** you're allowed to perform on it. It says *what* each operation does and nothing about *how*.
+Imagine a campus event desk. It must **record each check-in** and **report how many people have arrived**. The user of this feature should not need to know whether the program stores one number or keeps an event log.
 
-A TV remote is a good mental model. You know what "volume up" does. You don't know, or need to know, whether the remote uses infrared, Bluetooth, or carrier pigeons. The buttons are the **interface**; the electronics are the **implementation**. You can swap the electronics without re-teaching anyone how to use the remote.
-
-## Three words that get mixed up
-
-| Term | Question it answers | Example |
-|---|---|---|
-| **ADT** | *What* values and operations exist? | "A set of integers with union, intersection, member" |
-| **Data structure** | *How* is it laid out in memory? | an array, a linked list, a bit vector, a hash table |
-| **Implementation** | The actual code | `void insert(Set *A, int x) { … }` |
-
-One ADT can have many data structures behind it. That's the whole shape of this course:
+This follows Aho, Hopcroft, and Ullman's path from **problem → model → operations → implementation**. In §1.1 they refine an informal solution until its operations are precise enough to code; in §1.2 they define an abstract data type (ADT) as a mathematical model *together with operations*.
 
 ```mermaid
-flowchart LR
-  S["ADT Set"] --> S1["Array"] & S2["Linked list"] & S3["Cursor-based"] & S4["Bit vector"]
-  D["ADT Dictionary"] --> D1["Array / list"] & D2["Open hashing"] & D3["Closed hashing"]
-  P["ADT Priority Queue"] --> P1["Sorted / unsorted list"] & P2["Partially ordered tree (heap)"]
+flowchart TB
+  P["Problem: count check-ins"] --> M["Model: nonnegative count"]
+  M --> A["ADT: create, record, value, destroy"]
+  A --> R{"Choose a representation"}
+  R --> S["Store one number"]
+  R --> L["Store a log of arrivals"]
+  S --> C["Same promised behavior"]
+  L --> C
 ```
 
-You pick the data structure based on which operations you need to be fast. That trade-off is the skill this course is really teaching.
+**The model alone is not the ADT.** A count with only `record` and `value` is a different ADT from one that also supports `undo` or `history`. Aho stresses that the *chosen operations* influence which representation is appropriate (Chapter 1 §1.2, supplied PDF p. 15).
 
-## How your course writes an ADT
+> [!question]- Predict before reading on
+> If the desk suddenly needs the ID of the last person who checked in, can one count answer? No: the requirement changes what the ADT must remember. A log, or at least the last ID, is now needed.
 
-The handouts follow Aho, Hopcroft & Ullman's *Data Structures and Algorithms*. Operations are written in math style: the element first, then the set.
+## 2. Four layers that sound alike
 
-| Operation | Meaning |
-|---|---|
-| `initialize(A)` | make `A` a valid, empty set |
-| `makenull(A)` | empty an existing set |
-| `insert(x, A)` | add `x` to `A` if it isn't already there |
-| `delete(x, A)` | remove `x` from `A` if it's there |
-| `member(x, A)` | true if `x ∈ A`, false otherwise |
+| Layer | Question | Check-in example |
+|---|---|---|
+| **Problem** | What outcome is needed? | Count arrivals. |
+| **Model** | What values represent state? | A nonnegative integer. |
+| **ADT** | Which operations and behavior are promised? | Record one arrival; read the count. |
+| **Data structure / implementation** | How is state stored and manipulated? | A `size_t` field plus C functions, or a log. |
 
-Notice what's **not** there: no arrays, no pointers, no `count`. That's the "abstract" part. Anyone who uses the ADT only needs this table.
+Aho's §1.3 describes arrays, records, linked cells, pointers, and cursors as **data structures**. A C `typedef` by itself is not an ADT specification.
 
-## From specification to C
+## 3. Write a contract before code
 
-In C, the interface lives in a header file (prototypes) and the implementation in a `.c` file (bodies). Code that *uses* the ADT only includes the header.
+| Operation | Precondition | Observable result |
+|---|---|---|
+| `create()` | None | New counter with value 0; may report allocation failure. |
+| `record(c)` | `c` is valid | Adds 1, or reports overflow without changing the value. |
+| `value(c)` | `c` is valid | Returns the count without changing it. |
+| `destroy(c)` | `c` is valid or `NULL` | Releases its storage; the old pointer must not be used. |
 
-Here's a complete example on a small ADT that isn't part of your coursework: a **Fraction**.
+**Invariant:** the value equals the number of *successful* `record` calls since creation. The contract does not promise a particular field name or allocation layout. Aho's SET example likewise names `MAKENULL(A)`, `UNION(A,B,C)`, and `SIZE(A)` without specifying an array or list (§1.2, PDF p. 15).
 
-```c title="fraction.h"
-#ifndef FRACTION_H
-#define FRACTION_H
+> [!important] A real boundary hides the representation
+> If a public C header exposes a struct's fields and clients read them, changing those fields can break clients. The earlier Fraction example in this note exposed `num` and `den`; it did **not** guarantee that changing the storage to a `double` would leave every client unchanged.
 
-typedef struct {
-    int num;   /* numerator */
-    int den;   /* denominator, always > 0 */
-} Fraction;
+## 4. Build the boundary in C
 
-Fraction makeFraction(int num, int den);   /* reduced, sign on the numerator */
-Fraction addFraction(Fraction a, Fraction b);
-int      equalFraction(Fraction a, Fraction b);
-void     printFraction(Fraction f);
+This original **check-in counter** is separate from the course's Set/List exercises. Save these blocks as three files in the same directory. The header declares an *incomplete* `struct Counter`, so client code can hold a `Counter *` but cannot access its fields.
 
+```c title="counter.h"
+#ifndef COUNTER_H
+#define COUNTER_H
+#include <stdbool.h>
+#include <stddef.h>
+
+typedef struct Counter Counter;       /* representation hidden */
+Counter *counter_create(void);        /* NULL means allocation failed */
+bool counter_record(Counter *c);      /* false if count would overflow */
+size_t counter_value(const Counter *c);
+void counter_destroy(Counter *c);
 #endif
 ```
 
-```c title="fraction.c" {4-8}
-#include <stdio.h>
-#include "fraction.h"
+```c title="counter.c"
+#include "counter.h"
+#include <stdint.h>                 /* SIZE_MAX */
+#include <stdlib.h>
 
-static int gcd(int a, int b) {        /* helper: hidden from users */
-    if (a < 0) a = -a;
-    if (b < 0) b = -b;
-    while (b != 0) { int t = a % b; a = b; b = t; }
-    return a;
+struct Counter {
+    size_t total;                  /* private representation */
+};
+
+Counter *counter_create(void) {
+    Counter *c = malloc(sizeof *c);
+    if (c != NULL) c->total = 0;
+    return c;
 }
 
-Fraction makeFraction(int num, int den) {
-    if (den < 0) { num = -num; den = -den; }
-    int g = gcd(num, den);
-    if (g == 0) g = 1;
-    Fraction f = { num / g, den / g };
-    return f;
+bool counter_record(Counter *c) {
+    if (c->total == SIZE_MAX) return false;
+    ++c->total;
+    return true;
 }
 
-Fraction addFraction(Fraction a, Fraction b) {
-    return makeFraction(a.num * b.den + b.num * a.den, a.den * b.den);
-}
-
-int equalFraction(Fraction a, Fraction b) {
-    return a.num == b.num && a.den == b.den;   /* works because both are reduced */
-}
-
-void printFraction(Fraction f) {
-    printf("%d/%d\n", f.num, f.den);
-}
+size_t counter_value(const Counter *c) { return c->total; }
+void counter_destroy(Counter *c) { free(c); }
 ```
 
 ```c title="main.c"
-#include "fraction.h"
+#include "counter.h"
+#include <stdio.h>
 
 int main(void) {
-    Fraction half = makeFraction(1, 2);
-    Fraction third = makeFraction(2, 6);        /* stored as 1/3 */
-    printFraction(addFraction(half, third));    /* 5/6 */
+    Counter *desk = counter_create();
+    if (desk == NULL) return 1;
+
+    if (!counter_record(desk) || !counter_record(desk)) {
+        counter_destroy(desk);
+        return 1;
+    }
+    printf("arrivals: %zu\n", counter_value(desk)); /* arrivals: 2 */
+    counter_destroy(desk);
     return 0;
 }
 ```
 
-`main.c` never touches `gcd`, never reduces anything by hand, and would keep working if you changed `Fraction` to store a `double`. That's the payoff of an ADT: **the implementation can change without breaking the users**.
+From that directory, run:
 
-## C patterns you'll see in every ADT
-
-**Modify → pass a pointer. Query → pass by value (or pointer to const).**
-
-```c
-void insert(Set *A, int x);     /* changes A, so it needs A's address   */
-int  member(Set A, int x);      /* only reads A, a copy is fine         */
+```bash
+cc -std=c11 -Wall -Wextra -Wpedantic counter.c main.c -o checkins
+./checkins
 ```
 
-If `insert` took `Set A` by value, it would modify a *copy* and the caller's set would never change. This is the same reason your linked-list insert needed a `Node **`.
+Now try `desk->total = 99;` in `main.c`. The compiler rejects it: the client cannot see the private struct definition. A future implementation could keep a log and count its entries in `counter_value`; `main.c` would still compile, though costs and memory would change.
 
-> [!warning] Arrays are the exception
-> An array parameter decays to a pointer. `void f(int arr[])` can already modify the caller's array. So when a set **is** an array (`typedef bool Set[8];`), `insert(Set A, int x)` works without `*`. Look out for this in the bit-vector variations.
+| Call | Private state | Client sees |
+|---|---:|---|
+| `create()` | `total = 0` | A valid handle. |
+| `record()` | `total = 1` | `true`. |
+| `record()` | `total = 2` | `true`. |
+| `value()` | Still `2`. | `2`. |
 
-**Different `typedef` shapes for the same ADT.** Your List unit had four array versions: a struct, a pointer to a struct, a struct with a dynamic array, and a pointer to that. They're all the same ADT. Only the declarations and the `.` versus `->` access change.
+## 5. Choose a representation deliberately
 
-## Practice
+For *only* count and read, one number is simple. For the ID or time of each arrival, a log is useful. For the most recent 100 arrivals, a bounded ring buffer may fit. No representation wins without a workload.
 
-**Basic.**
+Use this sequence for every course ADT:
 
-1. Which of these belong in an ADT *specification*, and which belong to an *implementation*?
-   `member(x, A)`, `A->count`, "returns true if x is in A", `malloc`, "inserting an existing element leaves A unchanged".
+1. **Name the values and operations.** What must users be able to ask or change?
+2. **State preconditions and invariants.** What state must never become invalid?
+3. **List representations.** Array, list, bit vector, hash table, heap, etc.
+4. **Cost the important operations.** How often are they called? At what size?
+5. **Test edges.** Empty, full, repeated element, invalid input, allocation failure.
 
-> [!answer]- Answer
-> Specification: `member(x, A)`, "returns true if x is in A", "inserting an existing element leaves A unchanged".
-> Implementation: `A->count` and `malloc`. They describe *how* the set is stored.
+## 6. Check your reasoning
 
-2. Why does `void insert(Set A, int x)` fail to change the caller's set when `Set` is a struct?
+**Classify** each statement as a promise to clients or a private detail: (a) `record` adds one or reports failure unchanged; (b) the count lives in a `size_t total` field; (c) `value` does not modify the count; (d) `malloc` allocates the object.
 
-> [!answer]- Answer
-> C passes structs by value. The function gets a copy and modifies the copy, which disappears when it returns. Pass `Set *A` and use `A->…` instead.
+> [!answer]- Check
+> (a) and (c) are client-visible behavior. (b) and (d) describe this implementation. Depending on (b) or (d) makes a representation change harder.
 
-**Intermediate.**
+**Predict:** What new operation would force the counter to remember *more* than its current value? Sketch the smallest extra state you would need.
 
-3. You're given `typedef struct node { int elem; struct node *next; } *Set;`. Should `insert` take `Set` or `Set *`? Think about inserting into an **empty** set.
+> [!hint]- One direction
+> "Tell me the last arrival's ID" cannot be answered from a count. At minimum, retain that ID. Undoing an arbitrary arrival may require a history.
 
-> [!hint]- Hint
-> An empty set here is `NULL`. After inserting the first element, the caller's variable must point at a new node. Can a function change the caller's pointer if it only receives a copy of it?
+**Transfer:** Does Aho's `UNION(A,B,C)` contract say whether sets are arrays, lists, or bit vectors? What information would you ask for before choosing?
 
-**Advanced.**
-
-4. Add `subtractFraction` and `lessThan` to the Fraction ADT without changing `main.c`'s existing lines. Which files change?
-
-> [!answer]- Answer
-> `fraction.h` (two new prototypes) and `fraction.c` (two new bodies). `main.c` only changes if it wants to *use* the new operations. That's the ADT boundary doing its job.
+> [!answer]- Check
+> It does not choose a representation. Ask about the possible element values, universe size, typical set size, and frequency of each operation. [[Big-O and Complexity]] supplies the language for those costs.
 
 ## Next
 
-Before comparing implementations you need a way to measure them. That's [[Big-O and Complexity]].
+Learn to count work and compare implementations in [[Big-O and Complexity]].
 
-## References
+## Source map
 
-- Aho, Hopcroft & Ullman, *Data Structures and Algorithms* (1983), ch. 1: the source of your handouts' ADT notation.
-- Course handout: `01 ADT Guide.pdf`
-- [Abstract data type (Wikipedia)](https://en.wikipedia.org/wiki/Abstract_data_type)
+- Aho, Hopcroft & Ullman, *Data Structures and Algorithms* (1983), Chapter 1 §§1.1–1.3: problem-to-program refinement, the definition of an ADT, and data types versus data structures (supplied PDF pp. 5–18). The book uses Pascal; the C counter is an original teaching example.
+- Same book, Chapter 4 §4.3: one SET ADT represented by a bit vector (PDF pp. 140–143).

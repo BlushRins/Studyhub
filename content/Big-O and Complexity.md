@@ -2,149 +2,178 @@
 category: foundations
 level: fundamentals
 step: 2
-summary: "Big-O describes how an algorithm's running time or memory grows as the input grows. Six shorthand rules from your handout let you read the Big-O of most C functions straight off the loops."
-tags: [cis-2101, big-o, complexity, foundations]
+summary: "Count work as input grows: choose n, trace repetitions, derive bounds, and test whether the bound matters for the real workload."
+tags: [cis-2101, big-o, complexity, algorithms, foundations]
 course: CIS-2101 Data Structures
 updated: 2026-09-28
 ---
 
-> [!goal] By the end of this note you can
-> - Apply the six Big-O shorthands from your handout to real C code.
-> - Tell O(1), O(log n), O(n), O(n log n) and O(n²) apart by looking at loop shapes.
-> - Reason about **space** complexity, which decides between bit vectors and lists later.
+> [!goal] After this lesson
+> You can choose an input size, count basic operations, derive a useful Big-O bound, separate best/average/worst cases, and compare time against memory and implementation effort.
 
-## What Big-O measures
+## 1. Decide what `n` means
 
-Big-O answers one question: **as the input size `n` grows, how fast does the work grow?** It ignores the speed of your laptop and the exact number of instructions. It keeps only the growth *shape*.
+At a help desk, imagine searching a list of ticket IDs. Here `n` is the **number of IDs**. For a bit-vector set, two sizes matter: `s` = members actually present; `U` = possible IDs in the universe. For a graph, we may need both vertices `V` and edges `E`. **Name the size before naming the complexity.**
 
-Formally, `f(n) = O(g(n))` means that for large enough `n`, `f(n)` is at most a constant times `g(n)`. In practice you'll almost never use the formal definition. You'll use the shorthands.
+Aho, Hopcroft, and Ullman start with the input, the compiler/machine, and the algorithm as separate influences on measured running time (Chapter 1 §1.4, PDF pp. 18–20). Big-O describes how a chosen *model of work* grows, not seconds on one laptop.
 
-## The six shorthands (from your handout)
+```mermaid
+flowchart LR
+  N["1 · Define input size"] --> O["2 · Pick a basic operation"]
+  O --> T["3 · Count repetitions"]
+  T --> B["4 · State a bound and a case"]
+  B --> W["5 · Check the real workload"]
+```
 
-1. **Constants don't matter.** `O(2n)` → `O(n)`, `O(500)` → `O(1)`.
-2. **Smaller terms don't matter.** `O(n² + 3n + 1)` → `O(n²)`.
-3. **Arithmetic is constant time.** `a + b`, `x % 10`, `x << 3` are all O(1).
-4. **Variable assignment is constant.**
-5. **Array element access is constant.** `arr[i]` is O(1) no matter how big the array is.
-6. **Loop length × work inside the loop.** A loop that runs `n` times doing O(1) work is O(n). Nest it inside another `n`-loop and you get O(n²).
+For a linear search, the basic operation can be `a[i] == target`. Count comparisons, then ask which inputs place the target early, late, or not at all.
 
-## The classes you'll meet in this course
+## 2. Count one concrete trace
 
-| Big-O | Name | Where it shows up here | n = 1,000 → steps |
-|---|---|---|---|
-| O(1) | constant | bit-vector `member`, hash lookup (average) | 1 |
-| O(log n) | logarithmic | binary search, heap `insert` / `deletemin` | ~10 |
-| O(n) | linear | linked-list search, bit-vector union over an array | 1,000 |
-| O(n log n) | linearithmic | heap sort | ~10,000 |
-| O(n²) | quadratic | union of two **unsorted** lists | 1,000,000 |
+Suppose the IDs are `[12, 20, 31, 44, 55]` and the query is `44`.
 
-The jump from O(n) to O(n²) is the difference between instant and noticeable. From O(n) to O(log n) is the difference between searching a phone book page by page and opening it in the middle.
+| Attempt | Position checked | Comparison | Stop? |
+|---:|---:|---|---|
+| 1 | 0 | `12 == 44` → false | No |
+| 2 | 1 | `20 == 44` → false | No |
+| 3 | 2 | `31 == 44` → false | No |
+| 4 | 3 | `44 == 44` → true | Yes |
 
-## Reading Big-O off real code
+That run used four comparisons. If the query were `12`, it would use one. If the query were missing, it would use five. **One trace is evidence about one input, not a complexity proof.**
 
-### O(1): no loop that depends on n
+```c title="ticket_search.c"
+#include <stddef.h>
 
-```c
-int getThird(int arr[], int n) {
-    return (n >= 3) ? arr[2] : -1;   /* one comparison, one access */
+/* Returns index or n if absent. No sorting requirement. */
+size_t find_ticket(const int *a, size_t n, int target) {
+    for (size_t i = 0; i < n; ++i)
+        if (a[i] == target) return i;
+    return n;
 }
 ```
 
-### O(n): one pass
+For any array of length `n`, the loop compares at most `n` elements. Its worst-case time is **O(n)**, and because a missing ticket forces all `n` comparisons, the worst case is also **Ω(n)** in the usual lower-bound sense. Thus the worst case is **Θ(n)**. The best case is Θ(1). The function uses Θ(1) **auxiliary** space because it allocates no storage proportional to `n`.
 
-```c
-int linearSearch(int arr[], int n, int key) {
-    for (int i = 0; i < n; i++)        /* runs up to n times */
-        if (arr[i] == key) return i;   /* O(1) work each time */
-    return -1;
-}
+> [!note] What “average” requires
+> An average needs a probability model. If successful queries are equally likely to refer to any of the `n` positions, the expected comparisons are `(n+1)/2`, which is Θ(n). If recent tickets are far more likely and kept at the front, the real average changes. Aho cautions that “all inputs equally likely” is often an unjustified assumption (§1.4, PDF p. 20).
+
+## 3. What Big-O actually promises
+
+`T(n) = O(g(n))` means that **for sufficiently large `n`**, some positive constant `c` makes `T(n) ≤ c·g(n)`. It is an **upper bound**. It is not an exact stopwatch reading or necessarily the tightest possible description.
+
+For example, if `T(n) = 3n² + 2n + 7`, then for `n ≥ 1`:
+
+```text
+3n² + 2n + 7 ≤ 3n² + 2n² + 7n² = 12n²
 ```
 
-### O(log n): the search space halves every step
+So `T(n) = O(n²)`. It is also O(n³), but that weaker bound hides useful information. This is the same bounding move Aho demonstrates in §1.4 (PDF pp. 20–21).
+
+**Common shorthand:** drop constant factors and lower-order terms only *after* you know what was counted. `2n + 7` has linear growth; `4n² + n` has quadratic growth. These rules assume the individual operation costs used in the model are bounded independently of `n`.
+
+> [!warning] Avoid a misleading shortcut
+> “Arithmetic is O(1)” assumes fixed-width machine values. It does not apply unchanged to integers with arbitrarily many digits, disk operations, or a function call that scans an array. Look inside the loop body.
+
+## 4. Read code from the inside out
+
+### Sequential loops add
 
 ```c
-int binarySearch(int arr[], int n, int key) {   /* arr must be sorted */
-    int lo = 0, hi = n - 1;
-    while (lo <= hi) {
-        int mid = lo + (hi - lo) / 2;           /* avoids int overflow */
-        if (arr[mid] == key) return mid;
-        if (arr[mid] < key) lo = mid + 1;
-        else                hi = mid - 1;
-    }
-    return -1;
-}
+for (size_t i = 0; i < n; ++i) inspect(a[i]);
+for (size_t i = 0; i < n; ++i) print_id(a[i]);
 ```
 
-After 1 step there are n/2 candidates left, after 2 steps n/4, … after k steps n/2ᵏ. It stops when n/2ᵏ = 1, so k = log₂ n.
+If both called operations are O(1), this is `n + n = 2n`, hence O(n). Aho's sum rule says a fixed sequence is bounded by its most expensive step (§1.5, PDF pp. 23–24).
 
-### O(n²): a loop inside a loop
+### Nested loops multiply, but count their real lengths
 
-```c title="duplicates.c" {3-5}
-int countDuplicatePairs(int arr[], int n) {
-    int pairs = 0;
-    for (int i = 0; i < n; i++)
-        for (int j = i + 1; j < n; j++)
-            if (arr[i] == arr[j]) pairs++;
+```c title="pairs.c"
+#include <stddef.h>
+
+size_t equal_pairs(const int *a, size_t n) {
+    size_t pairs = 0;
+    for (size_t i = 0; i < n; ++i)
+        for (size_t j = i + 1; j < n; ++j)
+            if (a[i] == a[j]) ++pairs;
     return pairs;
 }
 ```
 
-The inner loop runs n−1, then n−2, … then 0 times. That sum is n(n−1)/2 = ½n² − ½n. Drop the constant and the smaller term: **O(n²)**.
+For `n = 4`, the inner comparison counts by row are **3 + 2 + 1 + 0 = 6**:
 
-## Best, average and worst case
-
-The same function can have different costs depending on the input.
-
-| `linearSearch` | When | Cost |
-|---|---|---|
-| Best case | key is at `arr[0]` | O(1) |
-| Worst case | key is last or missing | O(n) |
-| Average case | key equally likely anywhere | ~n/2 → O(n) |
-
-Hash tables are the famous example: **O(1) on average, O(n) in the worst case**. Keep both numbers in mind; exams ask for both.
-
-## Space complexity
-
-Big-O applies to memory too. This matters in the Set unit:
-
-| Set of `n` elements drawn from universe U = {0 … N−1} | Memory |
-|---|---|
-| Linked list | O(n): one node per element |
-| Bit vector | O(N): one bit per *possible* element, even if the set is empty |
-
-A bit vector for students' IDs 0…9,999,999 needs 10 million bits (~1.2 MB) *per set*, even if it holds five students. A list of five students needs five nodes. Neither is "better". It depends on N versus n.
-
-## Practice
-
-**Basic.** What's the Big-O of each?
-
-```c
-/* (a) */ for (int i = 0; i < n; i += 2) sum += arr[i];
-/* (b) */ for (int i = 0; i < 100; i++) sum += arr[i % n];
-/* (c) */ for (int i = 1; i < n; i *= 2) sum++;
+```text
+          j=0  j=1  j=2  j=3
+    i=0    ·    ×    ×    ×
+    i=1    ·    ·    ×    ×
+    i=2    ·    ·    ·    ×
+    i=3    ·    ·    ·    ·
 ```
 
-> [!answer]- Answers
-> (a) O(n): n/2 iterations, constants drop.
-> (b) O(1): always exactly 100 iterations, whatever `n` is.
-> (c) O(log n): `i` doubles, so the loop runs about log₂ n times.
+In general the sum is `n(n−1)/2`; O(n²) and Θ(n²) for this comparison count. The triangular shape matters: “two loops” alone does not prove O(n²). Aho's bubble-sort analysis uses the same inside-out counting pattern (§1.5, PDF pp. 24–26).
 
-**Intermediate.** Two sets are stored as **unsorted** arrays of sizes n and m. The simplest union copies A, then for each element of B checks whether it's already in the result. What's the cost?
+### Halving gives a logarithm
 
-> [!answer]- Answer
-> For each of the m elements of B you scan up to n + m result elements: O(m · (n + m)), which is O(n²) when the sizes are similar. You'll see in [[List-Based Sets]] how keeping the lists **sorted** brings this down to O(n + m).
+When each step cuts the remaining candidates roughly in half, the sizes go `n, n/2, n/4, …, 1`. After `k` steps `n/2^k ≈ 1`, so `k ≈ log₂ n`. A binary search can be O(log n) **only if the array is sorted and random access is available**. Sorting first has its own cost; do not quietly exclude it from a one-off task.
 
-**Advanced.** A loop runs `n` times and each iteration calls `binarySearch` on an array of size `n`. Big-O? And what if the loop instead inserts into a sorted array, shifting elements each time?
+## 5. Watch growth by doubling the input
 
-> [!answer]- Answer
-> n × O(log n) = **O(n log n)**. Inserting into a sorted array costs O(n) per insert (shifting), so n inserts = **O(n²)**.
+These are **illustrative operation counts**, not measured seconds. Each column uses the simplest representative function (`1`, `log₂ n`, `n`, `n log₂ n`, `n²`).
+
+| `n` | constant | log₂ n | n | n log₂ n | n² |
+|---:|---:|---:|---:|---:|---:|
+| 8 | 1 | 3 | 8 | 24 | 64 |
+| 16 | 1 | 4 | 16 | 64 | 256 |
+| 32 | 1 | 5 | 32 | 160 | 1,024 |
+
+![Bar chart of the work multiplier when input grows from 8 to 16: constant ×1, logarithmic ×1.33, linear ×2, n log n ×2.67, quadratic ×4.](assets/foundations-growth-doubling.svg "Original chart: operation-count growth when n doubles")
+
+Before reading the next line, predict which bar would grow the *most* if you doubled from 16 to 32. The quadratic bar remains ×4; the logarithmic multiplier becomes `5/4 = 1.25`, illustrating that a growth *class* is not one fixed multiplier at every size.
+
+Doubling `n` roughly doubles a linear count but quadruples a quadratic one. Aho also points out that **constants, expected input sizes, programmer time, memory, and maintainability** can outweigh the asymptotic winner for small workloads (§§1.4–1.5, PDF pp. 21–23).
+
+> [!example] Real decision: a one-time campus roster lookup
+> For 30 entries queried once, a simple linear scan may be the best engineering choice. Sorting first to run a binary search adds work and a sortedness requirement. For a million fixed entries queried thousands of times, an index becomes worthwhile. To decide, count *build cost + number of queries × cost per query*.
+
+## 6. Space is part of the decision
+
+For a set with `s` present IDs from a universe of `U` possible IDs:
+
+| Representation | Rough storage growth | A question to ask |
+|---|---|---|
+| Linked list | O(s) nodes | How expensive is membership testing? |
+| Boolean array | O(U) cells | Is `U` small and known? |
+| Packed bit vector | O(U) bits | Are IDs compact integers or mappable to them? |
+
+If five users have IDs drawn from `0..9,999,999`, a bit per possible ID takes `10,000,000 / 8 = 1,250,000` bytes (about 1.19 MiB), even when the set is empty. Aho contrasts space proportional to the universal set with space proportional to present members in Chapter 4 §§4.3–4.4 (PDF pp. 142–143). This estimate excludes metadata and alignment.
+
+## 7. Think like an algorithm designer
+
+For any new function, write down four lines *before* saying “O(n)”:
+
+1. **Size:** what exactly is `n` (or `U`, `V`, `E`)?
+2. **Operation:** what work are you counting, including calls inside loops?
+3. **Case:** worst, best, or average under what assumptions?
+4. **Tradeoff:** what preprocessing, memory, or implementation cost was left out?
+
+**Challenge A.** A function makes one pass over `n` IDs, then for each ID scans all previous IDs. Is it O(n) because the outer pass is O(n)? Draw the triangle before opening the answer.
+
+> [!answer]- Check
+> No. The inner scans do `0 + 1 + … + (n−1) = n(n−1)/2` comparisons. With O(1) work per comparison, the total is Θ(n²). The initial single pass does not change the dominant term.
+
+**Challenge B.** A single query on an *unsorted* array of 30 IDs: option A scans it; option B sorts it, then binary-searches it. Which is cheaper? What changes at 10,000 queries?
+
+> [!hint]- Reasoning scaffold
+> Compare total costs, not just the final search: A has about `q·n` comparisons for `q` queries; B has a one-time sort plus about `q·log₂ n`. For `q=1`, the setup can dominate. At high `q`, amortizing the setup may pay off. Constants and changing data can shift the cutoff.
+
+**Challenge C.** In `for (i=0; i<n; ++i) contains(list, a[i]);`, what if `contains` itself scans a list of length `n`?
+
+> [!answer]- Check
+> The body is O(n), so the outer `n` repetitions make O(n²). This is why you must inspect called functions, not just visible loop nesting.
 
 ## Next
 
-Bit-vector sets are built from single bits, so first: [[Bitwise Operations in C]].
+[[Bitwise Operations in C]] shows how small fixed universes can become bit vectors. Then [[ADT Set]] uses the cost model to compare representations.
 
-## References
+## Source map
 
-- Course handout: `02 Big O Notation.pdf` (the six shorthands)
-- [Big O notation (Wikipedia)](https://en.wikipedia.org/wiki/Big_O_notation)
-- Aho, Hopcroft & Ullman, *Data Structures and Algorithms*, ch. 1.4–1.5 (running time of programs)
+- Aho, Hopcroft & Ullman, *Data Structures and Algorithms* (1983), Chapter 1 §§1.4–1.5: input size, worst/average case, upper bounds, sum/product rules, loop counting, and non-performance tradeoffs (supplied PDF pp. 18–26).
+- Same book, Chapter 4 §§4.3–4.4: bit-vector versus linked-list space and operation costs (PDF pp. 140–143). Examples, tables, and code here are original.

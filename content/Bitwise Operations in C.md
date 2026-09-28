@@ -2,182 +2,174 @@
 category: foundations
 level: basic
 step: 3
-summary: "Binary, masks, and the six bitwise operators (& | ^ ~ << >>), plus the four idioms (set, clear, toggle, test a bit) that every bit-vector set is built from."
+summary: "See how a Boolean array becomes a packed word: read binary positions, build masks, trace each operation, and avoid C's shift and promotion traps."
 tags: [cis-2101, bitwise, binary, c, foundations]
 course: CIS-2101 Data Structures
 updated: 2026-09-28
 ---
 
-> [!goal] By the end of this note you can
-> - Convert between decimal, binary, and hex for 8-bit values in your head.
-> - Predict the result of `&`, `|`, `^`, `~`, `<<`, `>>` on unsigned values.
-> - Build a mask with `1u << k` and use it to **set, clear, toggle and test** one bit.
-> - Avoid the classic bugs: signed shifts, shifting too far, `~` promotion, and precedence.
+> [!goal] After this lesson
+> You can read an 8-bit drawing, build a mask for an element, trace AND/OR/XOR/NOT, translate set operations into word operations, and explain when the packed representation is useful.
 
-## 1. Binary in five minutes
+## 1. Why bits belong in a data structures course
 
-A byte is 8 bits. Bit `k` has **place value 2ᵏ**, and bit 0 is the rightmost (least significant).
+Aho's Chapter 4 §4.3 represents a set as a Boolean array: **slot `i` is true exactly when `i` is a member**. If the universe is small enough to fit in a computer word, the same yes/no values can be packed into individual bits, allowing union, intersection, and difference to act on the whole word at once (supplied PDF pp. 140–143).
 
-| Bit position | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
-|---|---|---|---|---|---|---|---|---|
-| Place value | 128 | 64 | 32 | 16 | 8 | 4 | 2 | 1 |
-| `45` in binary | 0 | 0 | 1 | 0 | 1 | 1 | 0 | 1 |
+There are two layers here:
 
-45 = 32 + 8 + 4 + 1, so `45 = 0b00101101`.
-
-**Hex** is shorthand for binary: each hex digit is exactly 4 bits. `0010 1101` → `2` `D` → `0x2D`. That's why printing bit patterns in groups of 4 is easier to read.
-
-**How many bits does a type have?** Use `sizeof`, which counts bytes: `8 * sizeof(unsigned char)` is 8, and `8 * sizeof(unsigned int)` is 32 on most machines, but never assume. (`CHAR_BIT` from `<limits.h>` is the exact bits-per-byte.)
-
-> [!tip] Use unsigned types for bits
-> Every bit-manipulation example here uses `unsigned char` or `unsigned int`. Signed types have a sign bit, and shifting or inverting them hits implementation-defined or undefined behaviour (section 4).
-
-## 2. The six operators
-
-Examples use `a = 0b00101101` (45) and `b = 0b00001111` (15).
-
-| Operator | Name | Rule per bit | `a op b` | Result |
-|---|---|---|---|---|
-| `a & b` | AND | 1 only if **both** are 1 | `00101101 & 00001111` | `00001101` (13) |
-| `a \| b` | OR | 1 if **either** is 1 | `00101101 \| 00001111` | `00101111` (47) |
-| `a ^ b` | XOR | 1 if they **differ** | `00101101 ^ 00001111` | `00100010` (34) |
-| `~b` | NOT | flip every bit | `~00001111` | `11110000` (240, as a byte) |
-| `a << 2` | left shift | move bits left, fill with 0 | `00101101 << 2` | `10110100` (180) |
-| `a >> 2` | right shift | move bits right, fill with 0 (unsigned) | `00101101 >> 2` | `00001011` (11) |
-
-Shifting left by 1 multiplies by 2; shifting right by 1 divides by 2 (unsigned, rounding down).
-
-## 3. Masks and the four idioms
-
-A **mask** is a value with 1s exactly where you want to act. The mask for bit `k` is `1u << k`:
-
-```
-k = 0 → 00000001      k = 3 → 00001000      k = 7 → 10000000
-```
-
-With a mask, four one-liners cover everything:
-
-| Goal | Idiom | Why it works |
+| Representation | What `A[3]` means | Storage for 8 possible IDs |
 |---|---|---|
-| **Set** bit k (make it 1) | `x \|= (1u << k);` | OR with 1 forces 1; OR with 0 changes nothing |
-| **Clear** bit k (make it 0) | `x &= ~(1u << k);` | the inverted mask is 0 only at k; AND with 0 forces 0 |
-| **Toggle** bit k | `x ^= (1u << k);` | XOR with 1 flips; XOR with 0 keeps |
-| **Test** bit k | `(x & (1u << k)) != 0` | everything except bit k is masked away |
+| `int A[8]` | The fourth **integer cell** is 0 or 1. | Typically 32 bytes if `int` is 4 bytes. |
+| `bool A[8]` | The fourth **Boolean cell** is false or true. | Typically 8 bytes if `bool` is 1 byte. |
+| One 8-bit word | **Bit 3** of a single word is 0 or 1. | 1 byte on an 8-bit-byte machine. |
 
-### Worked example: file permissions
+The first two are **arrays of cells**; the last is **one packed value**. `A[i] || B[i]` makes sense for cell arrays. `A | B` combines the bits of packed words. This distinction explains the `int SET[MAX]` whiteboard in [[Bit-Vector Union (Lecture)]].
 
-Here's a complete program on a problem that isn't a course exercise: Unix-style permission flags packed into one byte.
+> [!question]- What would change if the universe grew to 100 IDs?
+> One 8-bit word would not be enough. You could use an array of several unsigned words, with each ID mapped to a word index and a bit position, or use a different data structure. The model stays a Set; the representation changes.
 
-```c title="permissions.c"
+## 2. Read a word from right to left
+
+The following is an **8-bit drawing**. C's byte size is given by `CHAR_BIT` in `<limits.h>`; do not assume every C implementation has 8-bit bytes.
+
+```text
+bit position   7  6  5  4  3  2  1  0
+place value  128 64 32 16  8  4  2  1
+value 45      0  0  1  0  1  1  0  1
+              └────── 32 + 8 + 4 + 1 = 45
+```
+
+So the low eight bits of `45` are `0010 1101`. Four bits form a hexadecimal digit: `0010` is `2`; `1101` is `D`; therefore the value is `0x2D`.
+
+**As a set:** if bit `i` says whether ID `i` is present, `0x2D` represents `{0, 2, 3, 5}`. The bit position is the **element**, while the power of two is the bit's **numeric contribution**. Confusing those two is a common source of mistakes.
+
+## 3. Build one mask
+
+A **mask** selects the bit you want. `1u << k` starts with bit 0 set and shifts it to bit `k`:
+
+```text
+k = 0:  0000 0001
+k = 3:  0000 1000
+k = 5:  0010 0000
+```
+
+The `u` makes the left operand unsigned. For a valid shift count, this is the value `2^k`. Use `unsigned` values for the packed word too.
+
+> [!warning] Check a variable bit position *before* shifting
+> A negative shift count, or a count at least as large as the promoted left operand's width, gives undefined behavior in C. `1u << 32` is not safe just because your machine has a 32-bit `unsigned int`. All fixed positions below are small and valid; a function accepting arbitrary IDs must check its range first.
+
+## 4. Learn four operations by tracing one bit
+
+Start with `x = 0010 1101` (45). Each row applies to the result of the previous row.
+
+| Goal | Expression | Trace of the low 8 bits | Decimal |
+|---|---|---|---:|
+| Set bit 4 | `x |= 1u << 4` | `0010 1101 \| 0001 0000 = 0011 1101` | 61 |
+| Clear bit 3 | `x &= ~(1u << 3)` | `0011 1101 & 1111 0111 = 0011 0101` | 53 |
+| Toggle bit 0 | `x ^= 1u << 0` | `0011 0101 ^ 0000 0001 = 0011 0100` | 52 |
+| Test bit 2 | `(x & (1u << 2)) != 0` | `0011 0100 & 0000 0100 = 0000 0100` | true |
+
+```text
+SET:     0 | 1 = 1      CLEAR: 1 & 0 = 0
+TOGGLE:  1 ^ 1 = 0      TEST:  1 & 1 = 1
+```
+
+`~mask` has many leading 1s in an `unsigned int`; the table shows only the low eight, because those are the positions we are tracking.
+
+## 5. Run an original example: sensor status flags
+
+This example is about device status, not a course Set exercise. It uses known-safe bit positions and prints the result of the trace above.
+
+```c title="sensor_flags.c"
+#include <stdbool.h>
 #include <stdio.h>
 
-/* One bit per permission. Named masks beat magic numbers. */
-#define PERM_READ   (1u << 2)   /* 100 */
-#define PERM_WRITE  (1u << 1)   /* 010 */
-#define PERM_EXEC   (1u << 0)   /* 001 */
-
-typedef unsigned char Perms;
-
-void describe(const char *who, Perms p) {
-    printf("%-6s %c%c%c  (value %u)\n", who,
-           (p & PERM_READ)  ? 'r' : '-',
-           (p & PERM_WRITE) ? 'w' : '-',
-           (p & PERM_EXEC)  ? 'x' : '-',
-           (unsigned)p);
-}
+enum { STATUS_READY = 2, STATUS_ALERT = 3, STATUS_LOGGING = 4 };
 
 int main(void) {
-    Perms owner = 0;
+    unsigned int flags = 0x2Du;                /* low 8 bits: 0010 1101 */
 
-    owner |= PERM_READ | PERM_WRITE;     /* set two bits at once   */
-    describe("owner", owner);            /* rw-  (value 6)         */
+    flags |= 1u << STATUS_LOGGING;             /* set bit 4  -> 61 */
+    flags &= ~(1u << STATUS_ALERT);            /* clear bit 3 -> 53 */
+    flags ^= 1u << 0;                          /* toggle bit 0 -> 52 */
 
-    owner |= PERM_EXEC;                  /* set                    */
-    owner &= (Perms)~PERM_WRITE;         /* clear                  */
-    describe("owner", owner);            /* r-x  (value 5)         */
-
-    owner ^= PERM_WRITE;                 /* toggle: now it's back  */
-    describe("owner", owner);            /* rwx  (value 7)         */
-
-    Perms group = PERM_READ | PERM_EXEC;
-    describe("both",  owner & group);    /* AND: permissions they share    */
-    describe("either", owner | group);   /* OR: permissions either one has */
+    bool ready = (flags & (1u << STATUS_READY)) != 0;
+    printf("value=%u ready=%s\n", flags, ready ? "yes" : "no");
     return 0;
 }
 ```
 
-Look at the last two lines: `&` gives what two permission sets **have in common** and `|` gives **everything either has**. That's intersection and union. Bit vectors turn set operations into single instructions, which is the whole point of the next unit.
+Compile **from the directory containing `sensor_flags.c`**:
 
-## 4. The bugs everyone hits once
-
-> [!danger] Shifting by too much is undefined behaviour
-> In C, `x << k` is undefined if `k` is negative or ≥ the width of the (promoted) type. `1u << 32` on a 32-bit `unsigned int` is **not** 0. It's UB, and on x86 it often produces 1. Always range-check `k` before shifting. This is exactly why the ADT Guide's checklist starts with a *safety check*.
-
-**`1 << 31` vs `1u << 31`.** `1` is a signed `int`. Shifting a 1 into the sign bit is undefined. Write `1u` (unsigned) whenever you build masks.
-
-**`~` promotes to `int`.** In `unsigned char m = 0x0F;`, the expression `~m` is an **int** with value `-16` (`0xFFFFFFF0`), not `0xF0`. Assigning it back to an `unsigned char` truncates it to `0xF0`, which is fine, but comparing is not:
-
-```c
-unsigned char m = 0x0F;
-if (~m == 0xF0) { /* never true: -16 != 240 */ }
-if ((unsigned char)~m == 0xF0) { /* true */ }
+```bash
+cc -std=c11 -Wall -Wextra -Wpedantic sensor_flags.c -o sensor_flags
+./sensor_flags
 ```
 
-**Precedence.** `==` binds tighter than `&`:
+Expected output: `value=52 ready=yes`.
 
-```c
-if (x & 1 == 0)     /* parsed as x & (1 == 0) → x & 0 → always false */
-if ((x & 1) == 0)   /* what you meant: "x is even" */
+## 6. Connect bitwise logic to set logic
+
+Let `A = {0, 2, 5}` and `B = {2, 3, 7}`. As low eight bits:
+
+```text
+position   7 6 5 4 3 2 1 0
+A         0 0 1 0 0 1 0 1   = 0x25
+B         1 0 0 0 1 1 0 0   = 0x8C
+OR        1 0 1 0 1 1 0 1   = 0xAD  union
+AND       0 0 0 0 0 1 0 0   = 0x04  intersection
+A & ~B    0 0 1 0 0 0 0 1   = 0x21  A minus B
 ```
 
-**`&` is not `&&`.** `6 && 1` is 1 (both non-zero). `6 & 1` is 0 (no common bits).
+**Explain, do not memorize:** an element belongs to `A ∪ B` when it appears in **either** set, so OR is the right rule. It belongs to `A ∩ B` when it appears in **both**, so AND fits. It belongs to `A − B` when it is in A **and not** B.
 
-## 5. Practice
+> [!important] `|` and `||` answer different questions
+> `A | B` combines corresponding bits of packed words. `A || B` reduces each *whole operand* to one truth value: with two nonzero words, the result is simply `1`, losing almost all membership information. For `int A[8]` and `int B[8]` whose cells are constrained to 0 or 1, `A[i] || B[i]` correctly computes one result cell at a time.
 
-**Basic.** Let `unsigned char x = 0b01010010;` (82). Evaluate each, in binary and decimal.
+## 7. C traps worth recognizing
 
-1. `x | (1u << 0)`
-2. `x & ~(1u << 6)`
-3. `x ^ 0xFF`
-4. `(x >> 4) & 0x0F`
+**Precedence:** `==` binds tighter than `&`. Write `(x & mask) == 0`, not `x & mask == 0`.
 
-> [!answer]- Answers
-> 1. `01010011` = 83 (bit 0 set)
-> 2. `00010010` = 18 (bit 6 cleared)
-> 3. `10101101` = 173 (every bit flipped)
-> 4. `00000101` = 5 (the high nibble moved down)
+**Promotion:** a small `unsigned char` is commonly promoted to `int` before `~`. Do not expect `~byte` to be automatically limited to eight bits. If the intended result is stored back in an 8-bit byte, cast after complementing or apply an 8-bit mask. In a general program, use `CHAR_BIT` rather than assuming eight.
 
-**Intermediate: find the bug.**
+**Signed shifts:** build masks from `1u`, not signed `1`. Check an arbitrary `k` before shifting.
+
+**Outside the universe:** element `k` is not valid just because you can form `1u << k`. Your ADT contract still decides which elements exist; storage width and universe size are different concepts.
+
+## 8. Reasoning practice
+
+**A. Predict.** With `x = 0x2D`, what is `(x & (1u << 4)) != 0`? Which bit in the diagram proves it?
+
+> [!answer]- Check
+> False. Position 4 is 0 in `0010 1101`; ANDing with `0001 0000` gives 0.
+
+**B. Debug.** Why can this function give the wrong answer even for a valid `k`?
 
 ```c
-int isBitSet(unsigned int x, int k) {
-    return x & 1 << k == 1;
+int is_set(unsigned int x, unsigned int k) {
+    return x & 1u << k == 1u;
 }
 ```
 
-> [!answer]- Answer
-> Two problems. Precedence first: `<<` binds tighter than `==`, which binds tighter than `&`, so this is `x & ((1 << k) == 1)`. Second, even with correct parentheses, `(x & (1u << k))` equals `1u << k`, not `1`, whenever k > 0. Write `return (x & (1u << k)) != 0;` and add a range check on `k`.
+> [!hint]- First inspect precedence
+> `<<` happens before `==`, and `==` happens before `&`. Add parentheses to expose what the compiler actually evaluates. Then ask whether a nonzero mask result must equal the number 1.
 
-**Advanced: the bit-pattern exercise.** Your *Computer Word* handout asks for a function that displays the bit pattern of an integer. It must use only shift and bitwise operators, stay platform-independent with `sizeof`, use no arrays, and group the bits in fours. That one's yours to write. Some nudges:
+> [!answer]- Check
+> It parses as `x & ((1u << k) == 1u)`. For most `k`, that comparison is false, so the function tests `x & 0`. Even after fixing parentheses, the selected bit yields `2^k`, not always 1. The meaningful test is `(x & (1u << k)) != 0`, *after* checking that `k` is in range.
 
-> [!hint]- Hint 1: where to start
-> The first bit you print is the *most significant* one. Its position is `8 * sizeof(x) - 1`. Loop down from there to 0.
+**C. Choose a representation.** A set has five active device IDs, but any ID from 0 to 10 million is possible. Would one packed bit per possible ID be sensible? What if union is performed millions of times on dense sets?
 
-> [!hint]- Hint 2: testing each bit
-> For position `i`, you already know the idiom: build a mask and AND it with `x`. Which operator gives you the mask without an array?
+> [!answer]- Reasoning path
+> A packed vector needs about 10 million bits (roughly 1.25 MB) per set, even for five active IDs. A sparse representation is attractive for the first workload. If sets are dense and whole-set operations dominate, sequential word operations become attractive. Account for *both* the domain size and the workload.
 
-> [!hint]- Hint 3: grouping by four
-> You want a space *after* positions 12, 8, 4 (for 16 bits), but not after the last one. What's true about `i` at those points?
-
-> [!hint]- Hint 4: testing your function
-> Check it against values you can verify by hand: 0, 1, 45 (`0010 1101` in the low byte), 255, and the largest value of the type.
+**D. Your course's bit-pattern exercise.** The *Computer Word* handout asks you to print a value's bits. First write down the highest bit position using `CHAR_BIT` and `sizeof`, then decide how to move from it toward bit 0. Test 0, 1, and 45 by hand. Keep the implementation yours.
 
 ## Next
 
-You have the tools. Now the ADT they're built for: [[ADT Set]].
+[[ADT Set]] introduces the abstract operations. [[Bit-Vector Sets]] and [[Bit-Vector Union (Lecture)]] show the Boolean-array and packed-word representations in context.
 
-## References
+## Source map
 
-- Course handout: *Computer Word* (bit-pattern exercise, computer-word sets)
-- [SEI CERT C INT34-C: Do not shift by a negative number of bits or ≥ the operand width](https://wiki.sei.cmu.edu/confluence/display/c/INT34-C.+Do+not+shift+an+expression+by+a+negative+number+of+bits+or+by+greater+than+or+equal+to+the+number+of+bits+that+exist+in+the+operand)
-- [Arithmetic and bitwise operators (cppreference, C)](https://en.cppreference.com/w/c/language/operator_arithmetic)
+- Aho, Hopcroft & Ullman, *Data Structures and Algorithms* (1983), Chapter 4 §4.3: Boolean-array bit vectors, constant-time direct membership, whole-set operations proportional to universe size, and the one-word case (supplied PDF pp. 140–143). The C masks and sensor example here are an original translation and extension.
+- Course handout: *Computer Word* (bit-pattern exercise and one-word sets).
+- [WG14 C11 draft N1570, §§6.5.3.3 and 6.5.7–6.5.14](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf): promotions, shift counts, bitwise operators, and logical operators. This is the language-rule source for the C-specific cautions above.
