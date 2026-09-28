@@ -1,7 +1,7 @@
 ---
 category: adt-priority-queue
 level: advanced
-step: 17
+step: 16
 summary: "Heap sort in two phases: turn the unsorted array into a heap (insert each element, or heapify bottom-up in O(n)), then deletemin repeatedly into the freed slot at the end. O(n log n) always, in place, not stable. Plus where heaps show up beyond sorting."
 tags: [cis-2101, adt-priority-queue, heap-sort, heapify, week-12]
 course: CIS-2101 Data Structures

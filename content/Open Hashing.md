@@ -1,7 +1,7 @@
 ---
 category: adt-dictionary
 level: intermediate
-step: 11
+step: 10
 summary: "Open (external) hashing, also called separate chaining: an array of B lists, where the hash function picks the list. Unlimited capacity, O(1 + α) average operations, and the pointer-to-pointer trick that makes insert and delete clean."
 tags: [cis-2101, adt-dictionary, hashing, open-hashing, separate-chaining, week-8]
 course: CIS-2101 Data Structures

@@ -6,7 +6,8 @@ import { categoryIcons } from "@/components/layout/category-icons";
 import TableOfContents from "@/components/layout/TableOfContents";
 import LevelBadge from "@/components/note/LevelBadge";
 import NoteViewer from "@/components/note/NoteViewer";
-import { getAllNotes, getBacklinks, getCategory, getNeighbours, getNote, readingTime } from "@/lib/notes";
+import { getAllNotes, getBacklinks, getCategory, getNeighbours, getNote, getPathNotes, readingTime } from "@/lib/notes";
+import type { Note } from "@/lib/types";
 import { extractHeadings } from "@/lib/toc";
 
 export const dynamicParams = false;
@@ -27,6 +28,11 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
+/** "Step 7" on the learning path, the class date for lecture notes. */
+function positionLabel(note: Note) {
+  return note.step !== null ? `Step ${note.step}` : dateFormat.format(new Date(note.date!));
+}
+
 export default async function NotePage({ params }: PageProps<"/notes/[slug]">) {
   const note = getNote((await params).slug);
   if (!note) notFound();
@@ -36,7 +42,7 @@ export default async function NotePage({ params }: PageProps<"/notes/[slug]">) {
   const headings = extractHeadings(note.content);
   const backlinks = getBacklinks(note.slug);
   const { prev, next } = getNeighbours(note.slug);
-  const total = getAllNotes().length;
+  const total = getPathNotes().length;
 
   return (
     <div className="mx-auto flex max-w-[76rem] gap-12 px-5 pb-24 pt-10 sm:px-8 lg:pt-14">
@@ -49,7 +55,11 @@ export default async function NotePage({ params }: PageProps<"/notes/[slug]">) {
             </p>
             <LevelBadge level={note.level} />
             <span className="font-mono text-xs text-subtle">
-              Step {note.step} of {total}
+              {note.step !== null ? (
+                <>Step {note.step} of {total}</>
+              ) : (
+                <>Lecture · <time dateTime={note.date ?? undefined}>{dateFormat.format(new Date(note.date!))}</time></>
+              )}
             </span>
           </div>
           <h1 className="mt-4 text-balance text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
@@ -86,7 +96,7 @@ export default async function NotePage({ params }: PageProps<"/notes/[slug]">) {
               >
                 <span className="flex items-center gap-1.5 text-xs text-subtle">
                   <ArrowLeft aria-hidden className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
-                  Previous · Step {prev.step}
+                  Previous · {positionLabel(prev)}
                 </span>
                 <span className="mt-1 block font-medium text-fg group-hover:text-accent">{prev.title}</span>
               </Link>
@@ -99,7 +109,7 @@ export default async function NotePage({ params }: PageProps<"/notes/[slug]">) {
                 className="group rounded-xl border border-border bg-surface p-4 text-right transition-colors hover:border-accent/60 hover:bg-elevated"
               >
                 <span className="flex items-center justify-end gap-1.5 text-xs text-subtle">
-                  Next · Step {next.step}
+                  Next · {positionLabel(next)}
                   <ArrowRight aria-hidden className="size-3.5 transition-transform group-hover:translate-x-0.5" />
                 </span>
                 <span className="mt-1 block font-medium text-fg group-hover:text-accent">{next.title}</span>

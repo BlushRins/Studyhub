@@ -1,4 +1,4 @@
-import { Binary, KeyRound, Layers, Pyramid, type LucideIcon } from "lucide-react";
+import { Binary, KeyRound, Layers, NotebookPen, Pyramid, type LucideIcon } from "lucide-react";
 import type { CategoryIconKey } from "@/lib/types";
 
 export const categoryIcons: Record<CategoryIconKey, LucideIcon> = {
@@ -6,4 +6,5 @@ export const categoryIcons: Record<CategoryIconKey, LucideIcon> = {
   binary: Binary,
   key: KeyRound,
   pyramid: Pyramid,
+  lecture: NotebookPen,
 };

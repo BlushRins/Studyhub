@@ -1,7 +1,7 @@
 ---
 category: adt-dictionary
 level: basic
-step: 10
+step: 9
 summary: "A hash function turns a key into a bucket number. Good ones are fast, deterministic and spread keys evenly. Covers the division method (your course's last-digit grouping), string hashing, why table sizes should be prime, collisions, and perfect hash functions."
 tags: [cis-2101, adt-dictionary, hashing, hash-function, week-8]
 course: CIS-2101 Data Structures

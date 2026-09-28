@@ -42,17 +42,16 @@ npm run dev   # http://localhost:3000 — edits to content/*.md show on refresh
 | 4 | [[ADT Set]] | Fundamentals |
 | 5 | [[List-Based Sets]] | Basic |
 | 6 | [[Bit-Vector Sets]] | Intermediate |
-| 7 | [[Bit-Vector Union (Lecture)]] | Basic, class whiteboard 2026-09-28 |
-| 8 | [[Bit Vectors in the Real World]] | Advanced |
-| 9 | [[ADT Dictionary]] | Fundamentals |
-| 10 | [[Hash Functions]] | Basic |
-| 11 | [[Open Hashing]] | Intermediate |
-| 12 | [[Closed Hashing]] | Intermediate |
-| 13 | [[Hash Table Performance]] | Advanced |
-| 14 | [[ADT Priority Queue]] | Fundamentals |
-| 15 | [[Partially Ordered Trees]] | Basic |
-| 16 | [[Heaps in Arrays]] | Intermediate |
-| 17 | [[Heapify and Heap Sort]] | Advanced |
+| 7 | [[Bit Vectors in the Real World]] | Advanced |
+| 8 | [[ADT Dictionary]] | Fundamentals |
+| 9 | [[Hash Functions]] | Basic |
+| 10 | [[Open Hashing]] | Intermediate |
+| 11 | [[Closed Hashing]] | Intermediate |
+| 12 | [[Hash Table Performance]] | Advanced |
+| 13 | [[ADT Priority Queue]] | Fundamentals |
+| 14 | [[Partially Ordered Trees]] | Basic |
+| 15 | [[Heaps in Arrays]] | Intermediate |
+| 16 | [[Heapify and Heap Sort]] | Advanced |
 
 Each note has goals, theory, worked traces, C code, practice problems graded
 basic → advanced with foldable answers, and references. Graded course
@@ -60,17 +59,26 @@ exercises (ADT Guide bit-vector functions, hashing practice exercises, heap
 insert/deletemin, heap sort) are taught with hints and self-check tests, not
 solved.
 
-Lecture notes from class photos go in the same path: the photo lives in
-`content/assets/` (cropped, resized, EXIF stripped) and the note transcribes it.
+## Lecture notes (separate "From class" area)
+
+Notes transcribed from class (whiteboards, slides) live in their own sidebar
+area, outside the numbered path, sorted by class date.
+
+| Date | Note |
+|---|---|
+| 2026-09-28 | [[Bit-Vector Union (Lecture)]]: bit-vector set as an `int` array, union with `\|\|` |
+
+A lecture note uses `category: lectures` and `date: YYYY-MM-DD` instead of
+`step`. Photos go in `content/assets/` (cropped, resized, EXIF stripped).
 
 ## Writing a note
 
 A Markdown file in `content/`. The filename is the title. Frontmatter:
 
 ```yaml
-category: adt-set          # foundations | adt-set | adt-dictionary | adt-priority-queue
+category: adt-set          # foundations | adt-set | adt-dictionary | adt-priority-queue | lectures
 level: basic               # fundamentals | basic | intermediate | advanced
-step: 5                    # position in the path, unique
+step: 5                    # position in the path, unique (lecture notes: date: YYYY-MM-DD instead)
 summary: "One or two sentences for the header and hover cards."
 tags: [cis-2101, ...]
 updated: 2026-09-28

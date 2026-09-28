@@ -1,7 +1,7 @@
 ---
 category: adt-priority-queue
 level: fundamentals
-step: 14
+step: 13
 summary: "A priority queue is a set with two main operations: insert, and deletemin (remove and return the element with the smallest priority number). Where they show up in real life, and how list-based implementations compare before we reach heaps."
 tags: [cis-2101, adt-priority-queue, applications, week-10]
 course: CIS-2101 Data Structures

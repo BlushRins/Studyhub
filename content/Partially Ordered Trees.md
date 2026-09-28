@@ -1,7 +1,7 @@
 ---
 category: adt-priority-queue
 level: basic
-step: 15
+step: 14
 summary: "A partially ordered tree (POT) is a balanced binary tree whose lowest level fills left to right, and where every parent's priority is less than or equal to its children's. The minimum is always at the root, and insert and deletemin fix the tree in O(log n) swaps."
 tags: [cis-2101, adt-priority-queue, pot, binary-tree, week-10]
 course: CIS-2101 Data Structures

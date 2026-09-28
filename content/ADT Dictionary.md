@@ -1,7 +1,7 @@
 ---
 category: adt-dictionary
 level: fundamentals
-step: 9
+step: 8
 summary: "A dictionary is a set that only needs insert, delete and member. Dropping union and intersection opens up faster implementations: sorted arrays with binary search, bit vectors for small keys, and hashing for O(1) on average."
 tags: [cis-2101, adt-dictionary, binary-search, week-8]
 course: CIS-2101 Data Structures

@@ -1,7 +1,7 @@
 ---
 category: adt-priority-queue
 level: intermediate
-step: 16
+step: 15
 summary: "A heap is the array implementation of a POT. Store the tree level by level, and the index formulas 2i+1, 2i+2 and (i−1)/2 replace pointers. Covers insert and deletemin in array terms, min-heap vs max-heap, the bugs to avoid, and tools to test your own implementation."
 tags: [cis-2101, adt-priority-queue, heap, min-heap, max-heap, week-11]
 course: CIS-2101 Data Structures

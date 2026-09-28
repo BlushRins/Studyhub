@@ -1,11 +1,11 @@
 ---
-category: adt-set
+category: lectures
 level: basic
-step: 7
+date: 2026-09-28
 summary: "Class whiteboard, 2026-09-28: a bit-vector set as an int array (typedef int SET[MAX]), the membership question '3 is in the set?', and a union that builds C[i] = A[i] || B[i]. Plus the three things a C compiler rejects in the board version, and how to fix each."
 tags: [cis-2101, adt-set, bit-vector, lecture, week-7]
 course: CIS-2101 Data Structures
-source: class whiteboard, 2026-09-28
+source: class whiteboard
 updated: 2026-09-28
 ---
 

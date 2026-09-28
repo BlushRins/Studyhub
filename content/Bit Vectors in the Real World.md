@@ -1,7 +1,7 @@
 ---
 category: adt-set
 level: advanced
-step: 8
+step: 7
 summary: "Scaling bit vectors past one machine word (word index = x / 32, bit = x % 32), counting members with popcount, and where bitsets show up in real software: prime sieves, permissions, schedules and Bloom filters."
 tags: [cis-2101, adt-set, bit-vector, bitset, applications, week-7]
 course: CIS-2101 Data Structures

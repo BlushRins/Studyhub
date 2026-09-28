@@ -25,6 +25,18 @@ function fail(file: string, message: string): never {
   throw new Error(`content/${file}: ${message}`);
 }
 
+/** YAML turns an unquoted 2026-09-28 into a Date; normalise to "YYYY-MM-DD". */
+function isoDate(value: unknown): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? "");
+}
+
+/** Path notes by step, then lecture notes oldest first. */
+function compareNotes(a: Note, b: Note): number {
+  if (a.section !== b.section) return a.section === "path" ? -1 : 1;
+  if (a.section === "path") return a.step! - b.step!;
+  return a.date!.localeCompare(b.date!) || a.title.localeCompare(b.title);
+}
+
 function parseNote(file: string): Note {
   const raw = fs.readFileSync(path.join(CONTENT_DIR, file), "utf8");
   const match = raw.match(FRONTMATTER_RE);
@@ -37,21 +49,31 @@ function parseNote(file: string): Note {
   if (!categories.some((c) => c.id === category)) fail(file, `unknown category "${String(meta.category)}"`);
   const level = meta.level as Level;
   if (!(level in levels)) fail(file, `unknown level "${String(meta.level)}"`);
-  if (typeof meta.step !== "number") fail(file, "`step` must be a number");
+  const section = categories.find((c) => c.id === category)!.section;
   if (typeof meta.summary !== "string") fail(file, "`summary` is required");
 
-  // YAML turns an unquoted 2026-09-28 into a Date.
-  const updated = meta.updated instanceof Date ? meta.updated.toISOString().slice(0, 10) : String(meta.updated ?? "");
+  // Path notes need a step; lecture notes need the date of the class instead.
+  let step: number | null = null;
+  let date: string | null = null;
+  if (section === "path") {
+    if (typeof meta.step !== "number") fail(file, "`step` must be a number");
+    step = meta.step;
+  } else {
+    date = isoDate(meta.date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(file, "lecture notes need `date: YYYY-MM-DD`");
+  }
 
   return {
     slug: slugify(title),
     title,
     category,
     level,
-    step: meta.step,
+    section,
+    step,
+    date,
     summary: meta.summary,
     tags: Array.isArray(meta.tags) ? meta.tags.map(String) : [],
-    updated,
+    updated: isoDate(meta.updated),
     content: raw.slice(match[0].length),
   };
 }
@@ -60,12 +82,13 @@ function load(): Store {
   const files = fs
     .readdirSync(CONTENT_DIR)
     .filter((file) => file.endsWith(".md") && !file.startsWith("_"));
-  const notes = files.map(parseNote).sort((a, b) => a.step - b.step);
+  const notes = files.map(parseNote).sort(compareNotes);
 
   const bySlug = new Map<string, Note>();
   const byKey = new Map<string, Note>();
   for (const note of notes) {
-    const clash = bySlug.get(note.slug) ?? notes.find((n) => n !== note && n.step === note.step);
+    const clash =
+      bySlug.get(note.slug) ?? notes.find((n) => n !== note && n.step !== null && n.step === note.step);
     if (clash) throw new Error(`content: "${note.title}" clashes with "${clash.title}" (same slug or step)`);
     bySlug.set(note.slug, note);
     byKey.set(note.title.toLowerCase(), note);
@@ -98,21 +121,28 @@ export function getCategory(id: CategoryId): Category {
 
 export function getNavTree(): NavCategory[] {
   const { notes } = store();
-  return categories.map(({ id, label, icon }) => ({
+  return categories.map(({ id, label, icon, section }) => ({
     id,
     label,
     icon,
+    section,
     notes: notes
       .filter((note) => note.category === id)
-      .map(({ slug, title, step, level }) => ({ slug, title, step, level })),
+      .map(({ slug, title, step, date, level }) => ({ slug, title, step, date, level })),
   }));
 }
 
-/** The notes before and after `slug` in the learning path. */
+/** Notes in the learning path only (lecture notes excluded). */
+export function getPathNotes(): Note[] {
+  return store().notes.filter((note) => note.section === "path");
+}
+
+/** The notes before and after `slug` within its own section (path or lectures). */
 export function getNeighbours(slug: string): { prev?: Note; next?: Note } {
-  const { notes } = store();
-  const index = notes.findIndex((note) => note.slug === slug);
-  return { prev: notes[index - 1], next: notes[index + 1] };
+  const note = store().bySlug.get(slug);
+  const group = store().notes.filter((n) => n.section === note?.section);
+  const index = group.findIndex((n) => n.slug === slug);
+  return { prev: group[index - 1], next: group[index + 1] };
 }
 
 /** Resolve a wikilink target (title or slug, any case) to a slug. */

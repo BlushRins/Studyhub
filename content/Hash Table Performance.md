@@ -1,7 +1,7 @@
 ---
 category: adt-dictionary
 level: advanced
-step: 13
+step: 12
 summary: "Estimating hash table efficiency. Expected probes as a function of load factor for chaining and linear probing, why 80% is the rule of thumb, rehashing to grow a table, and where hash tables run real systems, from database indexes to caches."
 tags: [cis-2101, adt-dictionary, hashing, load-factor, rehashing, applications, week-9]
 course: CIS-2101 Data Structures

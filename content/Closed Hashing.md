@@ -1,7 +1,7 @@
 ---
 category: adt-dictionary
 level: intermediate
-step: 12
+step: 11
 summary: "Closed (internal) hashing stores every element in one fixed array. On a collision, linear hashing tries the next slot, (H(x) + i) % MAX. Covers EMPTY vs DELETED, synonyms and displacement, clustering, quadratic and double hashing, and average search length."
 tags: [cis-2101, adt-dictionary, hashing, closed-hashing, linear-probing, week-9]
 course: CIS-2101 Data Structures
