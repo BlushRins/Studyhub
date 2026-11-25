@@ -8,7 +8,8 @@ import path from "node:path";
 import { slug as slugify } from "github-slugger";
 import { parse as parseYaml } from "yaml";
 import { categories, levels } from "@/lib/categories";
-import { WIKI_LINK_RE } from "@/lib/markdown/remark-wiki-link";
+import { fromMarkdown } from "mdast-util-from-markdown";
+import remarkWikiLink from "@/lib/markdown/remark-wiki-link";
 import type { Category, CategoryId, Level, NavCategory, Note, NotePreview } from "@/lib/types";
 
 export const CONTENT_DIR = path.join(process.cwd(), "content");
@@ -19,6 +20,7 @@ interface Store {
   bySlug: Map<string, Note>;
   /** Wikilink lookup: lower-cased title or slug → note. */
   byKey: Map<string, Note>;
+  backlinks: Map<string, Note[]>;
 }
 
 function fail(file: string, message: string): never {
@@ -48,7 +50,7 @@ function parseNote(file: string): Note {
   const category = meta.category as CategoryId;
   if (!categories.some((c) => c.id === category)) fail(file, `unknown category "${String(meta.category)}"`);
   const level = meta.level as Level;
-  if (!(level in levels)) fail(file, `unknown level "${String(meta.level)}"`);
+  if (!Object.hasOwn(levels, level)) fail(file, `unknown level "${String(meta.level)}"`);
   const section = categories.find((c) => c.id === category)!.section;
   if (typeof meta.summary !== "string") fail(file, "`summary` is required");
 
@@ -56,11 +58,16 @@ function parseNote(file: string): Note {
   let step: number | null = null;
   let date: string | null = null;
   if (section === "path") {
-    if (typeof meta.step !== "number") fail(file, "`step` must be a number");
+    if (typeof meta.step !== "number" || !Number.isSafeInteger(meta.step) || meta.step < 1) {
+      fail(file, "`step` must be a positive integer");
+    }
     step = meta.step;
   } else {
     date = isoDate(meta.date);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(file, "lecture notes need `date: YYYY-MM-DD`");
+    const parsed = new Date(date + "T00:00:00Z");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || isoDate(parsed) !== date) {
+      fail(file, "lecture notes need a valid `date: YYYY-MM-DD`");
+    }
   }
 
   return {
@@ -82,7 +89,8 @@ function load(): Store {
   const files = fs
     .readdirSync(CONTENT_DIR)
     .filter((file) => file.endsWith(".md") && !file.startsWith("_"));
-  const notes = files.map(parseNote).sort(compareNotes);
+  const parsed = files.map((file) => ({ file, note: parseNote(file) }));
+  const notes = parsed.map(({ note }) => note).sort(compareNotes);
 
   const bySlug = new Map<string, Note>();
   const byKey = new Map<string, Note>();
@@ -94,7 +102,25 @@ function load(): Store {
     byKey.set(note.title.toLowerCase(), note);
     byKey.set(note.slug, note);
   }
-  return { notes, bySlug, byKey };
+  for (const { file, note } of parsed) {
+    const filename = path.basename(file, ".md").toLowerCase();
+    byKey.set(filename, byKey.get(filename) ?? note);
+  }
+  const backlinks = new Map<string, Note[]>();
+  for (const note of notes) {
+    const targets = new Set<string>();
+    remarkWikiLink({ resolve(target) {
+      const slug = findWikiTarget(byKey, target);
+      if (slug && slug !== note.slug) targets.add(slug);
+      return slug;
+    } })(fromMarkdown(note.content));
+    for (const slug of targets) {
+      const linked = backlinks.get(slug) ?? [];
+      linked.push(note);
+      backlinks.set(slug, linked);
+    }
+  }
+  return { notes, bySlug, byKey, backlinks };
 }
 
 // Production builds read content/ once. In dev, re-read on every call so edits
@@ -147,7 +173,10 @@ export function getNeighbours(slug: string): { prev?: Note; next?: Note } {
 
 /** Resolve a wikilink target (title or slug, any case) to a slug. */
 export function resolveWikiTarget(target: string): string | null {
-  const { byKey } = store();
+  return findWikiTarget(store().byKey, target);
+}
+
+function findWikiTarget(byKey: Store["byKey"], target: string): string | null {
   const key = target.trim().toLowerCase();
   return (byKey.get(key) ?? byKey.get(slugify(key)))?.slug ?? null;
 }
@@ -172,11 +201,7 @@ export function getNotePreview(slug: string): NotePreview | null {
 
 /** Notes that link to `slug` via a wikilink — Obsidian's "linked mentions". */
 export function getBacklinks(slug: string): { slug: string; title: string; categoryLabel: string }[] {
-  return store()
-    .notes.filter((note) => note.slug !== slug)
-    .filter((note) =>
-      [...note.content.matchAll(WIKI_LINK_RE)].some((match) => resolveWikiTarget(match[1]) === slug),
-    )
+  return (store().backlinks.get(slug) ?? [])
     .map((note) => ({
       slug: note.slug,
       title: note.title,

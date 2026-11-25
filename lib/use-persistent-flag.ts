@@ -8,14 +8,22 @@ import { useCallback, useSyncExternalStore } from "react";
 // keeps the toggle working for the session either way.
 
 const memory = new Map<string, boolean>();
-const listeners = new Set<() => void>();
+const listeners = new Map<string, Set<() => void>>();
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  window.addEventListener("storage", listener);
+function subscribe(key: string, listener: () => void) {
+  const current = listeners.get(key) ?? new Set<() => void>();
+  current.add(listener);
+  listeners.set(key, current);
+  const onStorage = (event: StorageEvent) => {
+    if (event.storageArea !== window.localStorage || (event.key !== key && event.key !== null)) return;
+    memory.delete(key);
+    listener();
+  };
+  window.addEventListener("storage", onStorage);
   return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", listener);
+    current.delete(listener);
+    if (!current.size) listeners.delete(key);
+    window.removeEventListener("storage", onStorage);
   };
 }
 
@@ -31,7 +39,7 @@ function read(key: string, fallback: boolean): boolean {
 
 export function usePersistentFlag(key: string, fallback = false) {
   const value = useSyncExternalStore(
-    subscribe,
+    useCallback((listener) => subscribe(key, listener), [key]),
     () => read(key, fallback),
     () => fallback,
   );
@@ -44,7 +52,7 @@ export function usePersistentFlag(key: string, fallback = false) {
       } catch {
         // Storage unavailable: the in-memory value still applies.
       }
-      listeners.forEach((listener) => listener());
+      listeners.get(key)?.forEach((listener) => listener());
     },
     [key],
   );

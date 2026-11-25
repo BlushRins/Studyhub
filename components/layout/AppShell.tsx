@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import type { NavCategory } from "@/lib/types";
 import { usePersistentFlag } from "@/lib/use-persistent-flag";
-import { cx } from "@/lib/utils";
+import { cx, noteSlugFromPath } from "@/lib/utils";
 import Sidebar from "./Sidebar";
 
 interface AppShellProps {
@@ -18,17 +18,25 @@ export default function AppShell({ nav, children }: AppShellProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = usePersistentFlag("study-hub:sidebar-collapsed");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawer = useRef<HTMLDialogElement>(null);
 
-  const slug = pathname.startsWith("/notes/") ? decodeURIComponent(pathname.slice("/notes/".length)) : null;
+  const slug = noteSlugFromPath(pathname);
   const category = nav.find((c) => c.notes.some((n) => n.slug === slug));
   const note = category?.notes.find((n) => n.slug === slug);
   const noteCount = nav.reduce((sum, c) => sum + c.notes.length, 0);
 
   useEffect(() => {
     if (!drawerOpen) return;
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setDrawerOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const dialog = drawer.current;
+    const desktop = window.matchMedia("(min-width: 64rem)");
+    if (!dialog || desktop.matches) return;
+    dialog.showModal();
+    const onResize = () => { if (desktop.matches) setDrawerOpen(false); };
+    desktop.addEventListener("change", onResize);
+    return () => {
+      desktop.removeEventListener("change", onResize);
+      if (dialog.open) dialog.close();
+    };
   }, [drawerOpen]);
 
   // No `display` here: each button sets its own, so `hidden` never fights `inline-flex`.
@@ -101,23 +109,24 @@ export default function AppShell({ nav, children }: AppShellProps) {
           <Sidebar nav={nav} collapsed={collapsed} onExpand={() => setCollapsed(false)} />
         </aside>
 
-        {drawerOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <div aria-hidden className="absolute inset-0 animate-fade-in bg-black/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-            <aside
-              id="mobile-nav"
-              className="absolute inset-y-0 left-0 w-[min(20rem,85vw)] animate-slide-in overflow-y-auto border-r border-border bg-surface shadow-2xl"
-            >
+        <dialog
+          ref={drawer}
+          id="mobile-nav"
+          aria-label="Notes navigation"
+          onCancel={(event) => { event.preventDefault(); setDrawerOpen(false); }}
+          onClick={(event) => { if (event.target === event.currentTarget) setDrawerOpen(false); }}
+          className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-transparent p-0 backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+        >
+            <aside className="h-full w-[min(20rem,85vw)] animate-slide-in overflow-y-auto border-r border-border bg-surface text-fg shadow-2xl">
               <div className="flex h-14 items-center justify-between border-b border-border px-4">
                 <span className="text-sm font-semibold">Notes</span>
-                <button type="button" className={cx(iconButton, "inline-flex")} onClick={() => setDrawerOpen(false)} aria-label="Close navigation" autoFocus>
+                <button type="button" className={cx(iconButton, "inline-flex")} onClick={() => setDrawerOpen(false)} aria-label="Close navigation">
                   <X aria-hidden className="size-[18px]" />
                 </button>
               </div>
               <Sidebar nav={nav} onNavigate={() => setDrawerOpen(false)} />
             </aside>
-          </div>
-        )}
+        </dialog>
 
         <main className="min-w-0 flex-1">{children}</main>
       </div>

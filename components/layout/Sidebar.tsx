@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { CategoryId, NavCategory } from "@/lib/types";
-import { cx } from "@/lib/utils";
+import { cx, noteSlugFromPath } from "@/lib/utils";
 import { categoryIcons } from "./category-icons";
 
 interface SidebarProps {
@@ -30,7 +30,7 @@ function marker(note: NavNote) {
 
 export default function Sidebar({ nav, collapsed = false, onExpand, onNavigate }: SidebarProps) {
   const pathname = usePathname();
-  const activeSlug = pathname.startsWith("/notes/") ? decodeURIComponent(pathname.slice("/notes/".length)) : null;
+  const activeSlug = noteSlugFromPath(pathname);
   const activeCategory = nav.find((c) => c.notes.some((n) => n.slug === activeSlug))?.id;
   const [closed, setClosed] = useState<ReadonlySet<CategoryId>>(new Set());
 

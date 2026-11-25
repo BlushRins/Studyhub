@@ -134,7 +134,7 @@ export default function DiagramViewer({ chart, title }: DiagramViewerProps) {
           aria-label={`${typeLabel}. Toggle "Source" for the text version.`}
           className="mermaid-canvas bg-dot-grid cursor-zoom-in overflow-x-auto px-4 py-6"
           onClick={() => setExpanded(true)}
-          dangerouslySetInnerHTML={{ __html: state.svg }}
+          dangerouslySetInnerHTML={{ __html: expanded ? "" : state.svg }}
         />
       ) : state.status === "error" ? (
         <div className="space-y-3 p-4">

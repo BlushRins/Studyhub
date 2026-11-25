@@ -17,12 +17,17 @@ const TYPES: Record<string, string> = {
 
 export const dynamicParams = false;
 
+function assetPaths(directory: string, segments: string[]): { path: string[] }[] {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const parts = [...segments, entry.name];
+    if (entry.isDirectory()) return assetPaths(path.join(directory, entry.name), parts);
+    return entry.isFile() && Object.hasOwn(TYPES, path.extname(entry.name).toLowerCase())
+      ? [{ path: parts }] : [];
+  });
+}
+
 export function generateStaticParams() {
-  if (!fs.existsSync(ASSETS_DIR)) return [];
-  return fs
-    .readdirSync(ASSETS_DIR)
-    .filter((file) => path.extname(file).toLowerCase() in TYPES)
-    .map((file) => ({ path: ["assets", file] }));
+  return fs.existsSync(ASSETS_DIR) ? assetPaths(ASSETS_DIR, ["assets"]) : [];
 }
 
 export async function GET(_request: Request, { params }: RouteContext<"/content/[...path]">) {
@@ -30,11 +35,22 @@ export async function GET(_request: Request, { params }: RouteContext<"/content/
   const file = path.resolve(CONTENT_DIR, ...segments);
   const type = TYPES[path.extname(file).toLowerCase()];
 
-  // Only files inside content/assets with an allowed image type.
-  if (!file.startsWith(ASSETS_DIR + path.sep) || !type || !fs.existsSync(file)) {
+  if (!file.startsWith(ASSETS_DIR + path.sep) || !type) {
     return new Response("Not found", { status: 404 });
   }
-  return new Response(fs.readFileSync(file), {
-    headers: { "Content-Type": type, "Cache-Control": "public, max-age=3600" },
+
+  let asset: string;
+  try {
+    asset = fs.realpathSync(file);
+    if (!asset.startsWith(fs.realpathSync(ASSETS_DIR) + path.sep) || !fs.statSync(asset).isFile()) {
+      return new Response("Not found", { status: 404 });
+    }
+  } catch {
+    return new Response("Not found", { status: 404 });
+  }
+  const headers = new Headers({
+    "Content-Type": type, "Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff",
   });
+  if (type === "image/svg+xml") headers.set("Content-Security-Policy", "sandbox; script-src 'none'; object-src 'none'");
+  return new Response(fs.readFileSync(asset), { headers });
 }
