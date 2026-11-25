@@ -56,6 +56,8 @@ Images and other assets go in `content/assets/`.
 | `lib/notes.ts` | loads and indexes the notes in `content/` |
 | `lib/markdown/` | custom remark/rehype plugins |
 
+The [project note](Study%20Hub.md) and [build log](Study%20Hub%20Build%20Log.md) are Obsidian vault records kept at the repository root. The site publishes the notes in `content/`.
+
 ## License
 
 [MIT](LICENSE) © 2026 BlushRins
