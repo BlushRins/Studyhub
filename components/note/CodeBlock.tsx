@@ -44,7 +44,8 @@ interface CodeBlockProps {
 export default function CodeBlock({ language = "plaintext", title, style, children }: CodeBlockProps) {
   const preRef = useRef<HTMLPreElement>(null);
   const resetTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "manual">("idle");
+  const copied = copyState === "copied";
 
   useEffect(() => () => clearTimeout(resetTimer.current), []);
 
@@ -58,14 +59,22 @@ export default function CodeBlock({ language = "plaintext", title, style, childr
   async function copy() {
     // Line numbers are CSS pseudo-elements, so textContent is exactly the source.
     // rehype-pretty-code pads empty lines with a single space; strip those.
-    const text = (preRef.current?.querySelector("code")?.textContent ?? "").replace(/^ $/gm, "");
+    const code = preRef.current?.querySelector("code");
+    if (!code) return;
+    const text = (code.textContent ?? "").replace(/^ $/gm, "");
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
       clearTimeout(resetTimer.current);
-      resetTimer.current = setTimeout(() => setCopied(false), 2000);
+      setCopyState("copied");
+      resetTimer.current = setTimeout(() => setCopyState("idle"), 2000);
     } catch {
-      // Clipboard API unavailable (insecure context or permission denied).
+      clearTimeout(resetTimer.current);
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(code);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      setCopyState("manual");
     }
   }
 
@@ -96,10 +105,10 @@ export default function CodeBlock({ language = "plaintext", title, style, childr
           {copied ? <Check aria-hidden className="size-3.5" /> : <Copy aria-hidden className="size-3.5" />}
           <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
         </button>
-        <span aria-live="polite" className="sr-only">
-          {copied ? "Code copied to clipboard" : ""}
-        </span>
       </div>
+      <p role="status" className={copyState === "manual" ? "px-4 py-2 text-sm text-fg" : "sr-only"}>
+        {copyState === "manual" ? "Use your device’s Copy command to copy the selected code." : copied ? "Code copied to clipboard" : ""}
+      </p>
 
       <pre ref={preRef} data-language={language} style={style} tabIndex={0}>
         {children}
