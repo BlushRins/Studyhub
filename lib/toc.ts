@@ -2,6 +2,7 @@ import GithubSlugger from "github-slugger";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { toString } from "mdast-util-to-string";
 import { visit } from "unist-util-visit";
+import remarkWikiLink from "./markdown/remark-wiki-link";
 import type { TocHeading } from "@/lib/types";
 
 /**
@@ -15,7 +16,10 @@ export function extractHeadings(markdown: string): TocHeading[] {
   const slugger = new GithubSlugger();
   const headings: TocHeading[] = [];
 
-  visit(fromMarkdown(markdown), "heading", (node) => {
+  const tree = fromMarkdown(markdown);
+  // Only the visible label contributes to an ID, even for unresolved links.
+  remarkWikiLink({ resolve: () => null })(tree);
+  visit(tree, "heading", (node) => {
     const text = toString(node);
     const id = slugger.slug(text);
     if (node.depth === 2 || node.depth === 3) {

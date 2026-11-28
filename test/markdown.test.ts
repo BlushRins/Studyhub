@@ -14,6 +14,14 @@ test("heading IDs reserve duplicates in document order", () => {
   ]);
 });
 
+test("wikilink labels share the rendered heading's duplicate sequence", () => {
+  const markdown = "## Comparing [[Closed Hashing|closed tables]]\n\n### Comparing closed tables";
+  assert.deepEqual(extractHeadings(markdown), [
+    { id: "comparing-closed-tables", text: "Comparing closed tables", depth: 2 },
+    { id: "comparing-closed-tables-1", text: "Comparing closed tables", depth: 3 },
+  ]);
+});
+
 test("callouts preserve their body and expose the fold marker", () => {
   const tree = fromMarkdown("> [!Tip]- Short title\n> Body.\n\n> Ordinary quote.");
   remarkCallouts()(tree);
